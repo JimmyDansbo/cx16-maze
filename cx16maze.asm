@@ -45,6 +45,7 @@ TMP5=$FD
 TMP6=$FE
 
 ; ******* Constants used in the source **********************
+Cursor=119
 Wall=113
 WallCol=$0B
 Space=' '
@@ -53,7 +54,7 @@ BitCnt=9
 ; ******* Global variables **********************************
 	jmp	Main
 
-.lvl		!byte	1
+.lvl		!byte	3
 .bytecnt	!byte	0
 .bitcnt		!byte	0
 .linecnt	!byte	0
@@ -64,7 +65,7 @@ BitCnt=9
 .mazeheight	!byte	00
 .mazewidth	!byte	00
 
-.title		!pet	"x16-maze",0
+.title		!pet	"cx16-maze",0
 .helptxt	!pet	"w,a,s,d=move spc=next r=reset q=quit",0
 .lvlstr		!pet	"lvl:",0
 .lvltxt		!pet	"000",0
@@ -95,13 +96,14 @@ Main:
 InitSCR:
 	lda	$D9	; $D9 contains the number of columns being shown
 	cmp	#80	; if this is 80, we will switch to 40x30
-	beq	SetIt	; Set 40 column mode
-	jmp	NoSet
-SetIt:
+	beq	.SetIt	; Set 40 column mode
+	jmp	.NoSet
+.SetIt:
 	jsr	SWAPPER	; Switch screenmode
-NoSet:
+.NoSet:
 	lda	#$01	; Black background, white text
 	sta	COLPORT	; Set Color
+
 	lda	#147	; ClrHome
 	jsr	CHROUT	; Clear Screen
 
@@ -144,7 +146,7 @@ NoSet:
 	sta	COLPORT
 
 	ldx	#1	; Set up for title text
-	ldy	#16
+	ldy	#15
 	jsr	GotoXY
 
 	ldx	#<.title; Write the title text
@@ -160,6 +162,10 @@ NoSet:
 	jsr	PrintStr
 
 	jsr	LVLtoPET ; Create level as a petscii string
+
+;	ldx	#1
+;	ldy	#35
+;	jsr	GotoXY
 
 	ldx	#<.lvltxt
 	ldy	#>.lvltxt
@@ -457,10 +463,29 @@ DrawMaze:
 	beq	.EndIt
 	jmp	.YCnt
 .EndIt:
+	; Calculate cursor placement
+	ldy	#3		; Get cursor X coordinate from
+	lda	(TMP0),Y	; maze data
+	clc
+	adc	.mazesx		; Add it to maze start X coordinate
+	sta	TMP2		; Save it in ZP while Y is calculated
+
+	ldy	#4		; Get cursor Y coordinate from
+	lda	(TMP0),Y	; maze data
+	clc
+	adc	.mazesy		; Add it to maze start Y coordinate
+	tax			; Y coordinate in X register
+	ldy	TMP2		; X coordinate in Y register
+	jsr	GotoXY
+
+	; Set the cursor color and print the cursor
+	lda	#$40		; Purple/Black
+	sta	COLPORT
+
+	lda	#Cursor		; Print the cursor in the right place
+	jsr	CHROUT
+
 	rts
-
-
-
 
 .mazes	!byte	25,10,10	;size,width,Height
 	!byte	00,01		;start coordinates (zero based)
@@ -476,7 +501,7 @@ DrawMaze:
 	!byte	%####.###,%########
 
 	!byte	25,10,10	;size,width,height
-	!byte	0,8		;start coordinates (zero based)
+	!byte	0,9		;start coordinates (zero based)
 	!byte	%........,%.#######
 	!byte	%.#......,%..######
 	!byte	%.#.#####,%#.######
@@ -489,7 +514,7 @@ DrawMaze:
 	!byte	%........,%..######
 
 	!byte	25,10,10
-	!byte	0,7
+	!byte	1,8
 	!byte	%#...#...,%.#######
 	!byte	%........,%..######
 	!byte	%....#.#.,%#.######
@@ -500,18 +525,5 @@ DrawMaze:
 	!byte	%..#.....,%..######
 	!byte	%#.......,%########
 	!byte	%###....#,%########
-
-	!byte	25,5,10	;size,width,height
-	!byte	0,8		;start coordinates (zero based)
-	!byte	%.......#
-	!byte	%.#......
-	!byte	%.#.#####
-	!byte	%.#.#....
-	!byte	%.#.#..#.
-	!byte	%.#.#..#.
-	!byte	%.#.####.
-	!byte	%.#......
-	!byte	%.######.
-	!byte	%........
 
 }
