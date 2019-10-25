@@ -14,7 +14,10 @@
 			; ($0000 = end of program)
 *=$0810			; Here starts the real program
 
-
+; Seems that $DA contains the number of lines on the screen.
+; If a new value is stored, it makes the text screen scroll on that line
+; In 40x30 mode, I can avoid scrolling on the bottom right corner by
+; setting the value in $DA to 31 instead of 30.
 
 ; ******** Kernal APIs - C64 API can be found here: *******
 ; http://sta.c64.org/cbm64krnfunc.html
