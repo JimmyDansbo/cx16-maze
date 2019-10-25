@@ -82,7 +82,12 @@ Main:
 ; *******************************************************************
 ; Initializes the screen
 ; *******************************************************************
-; INPUTS:	none
+; INPUTS:	Gloabl variables
+;			.lvl
+;			.title
+;			.helptxt
+;			.lvlstr
+;			.lvltxt
 ; *******************************************************************
 InitSCR:
 	lda	$D9	; $D9 contains the number of columns being shown
