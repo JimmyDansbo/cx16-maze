@@ -51,19 +51,28 @@ WallCol=$0B
 Space=' '
 BitCnt=9
 
+DirUp=1
+DirLeft=2
+DirDown=3
+DirRight=4
+
+
 ; ******* Global variables **********************************
 	jmp	Main
 
-.lvl		!byte	3
+.lvl		!byte	1
 .bytecnt	!byte	0
 .bitcnt		!byte	0
 .linecnt	!byte	0
 .colcnt		!byte	0
 .mazesx		!byte	00
 .mazesy		!byte	00
+.fields		!byte	0
 .currbyte	!byte	$ff
 .mazeheight	!byte	00
 .mazewidth	!byte	00
+.cursorx	!byte 	0
+.cursory	!byte	0
 
 .title		!pet	"cx16-maze",0
 .helptxt	!pet	"w,a,s,d=move spc=next r=reset q=quit",0
@@ -74,13 +83,72 @@ BitCnt=9
 Main:
 	jsr	InitSCR
 	jsr	DrawMaze
+	jsr	GameLoop
 
-	ldx	#29
-	ldy	#40
-	jsr	GotoXY
+	rts
 
-	jsr	CHRIN
+; **************************************************************
+; The main loop that takes care of reading keyboard input and
+; ensuring that screen is updated
+; **************************************************************
+; INPUTS:	none
+; OUTPUTS:	none
+; VARIABLES:	Uses ZP memory to hold direction flag
+; CONSTANTS:	TMP2 is used to hold direction flag
+;		DirStop, DirUp, DirLeft, DirDown, DirRight
+; **************************************************************
+GameLoop:
+	.direction=TMP2
 
+	jsr	GETIN		; Read keyboard input
+
+	cmp	#'Q'		; If Q is not pressed, check for
+	bne	.isW		; W key
+	jmp	.endgl		; Q pressed, jmp to end
+
+.isW:	cmp	#'W'		; If W is not pressed, check for
+	bne	.isA		; A key
+	lda	#DirUp		; Set direction to up
+	sta	.direction
+	jsr	MoveCursor	; Move the cursor
+	jmp	GameLoop	; Loop back to top
+
+.isA:	cmp	#'A'		; If A is not pressed, check for
+	bne	.isS		; S key
+	lda	#DirLeft	; Set direction to left
+	sta	.direction
+	jsr	MoveCursor	; Move the cursor
+	jmp	GameLoop	; Loop back to top
+
+.isS:	cmp	#'S'		; If S is not pressed, check for
+	bne	.isD		; D key
+	lda	#DirDown	; Set direction to down
+	sta	.direction
+	jsr	MoveCursor	; Move the cursor
+	jmp	GameLoop	; Loop back to top
+
+.isD:	cmp	#'D'		; If D is not pressed, check for
+	bne	.isSpc		; Space key
+	lda	#DirRight	; Set direction to right
+	sta	.direction
+	jsr	MoveCursor	; Move the cursor
+	jmp	GameLoop	; Loop back to top
+
+.isSpc:	cmp	#' '		; If Space is not pressed, check
+	bne	.isR		; for R key
+	; Can we go to next lvl
+	jmp	GameLoop	; Loop back to top
+
+.isR:	cmp	#'R'		; If R is pressed
+	beq	.doR
+	jmp	GameLoop	; If R is not pressed, loop to top
+.doR:	jsr	FillGA		; Reset the level
+	jsr	DrawMaze
+	jmp	GameLoop	; Loop back to top
+.endgl:
+	rts
+
+MoveCursor:
 	rts
 
 ; *******************************************************************
@@ -443,8 +511,7 @@ DrawMaze:
 	asl	.currbyte
 	bcs	.DrawWall
 	lda	#Space
-	inc	TMP2
-
+	inc	TMP2		; Another field needs to be colored to finish maze
 	jmp	+
 .DrawWall:
 	lda	#Wall
@@ -463,6 +530,9 @@ DrawMaze:
 	beq	.EndIt
 	jmp	.YCnt
 .EndIt:
+	lda	TMP2
+	sta	.fields
+
 	; Calculate cursor placement
 	ldy	#3		; Get cursor X coordinate from
 	lda	(TMP0),Y	; maze data
@@ -476,6 +546,8 @@ DrawMaze:
 	adc	.mazesy		; Add it to maze start Y coordinate
 	tax			; Y coordinate in X register
 	ldy	TMP2		; X coordinate in Y register
+	stx	.cursory
+	sty	.cursorx
 	jsr	GotoXY
 
 	; Set the cursor color and print the cursor
