@@ -26,6 +26,10 @@ CHRIN=$FFCF		; CHRIN read from default input
 GETIN=$FFE4		; GETIN reads a single byte from default input
 			; returns #0 if no key is pressed = non-blocking
 PLOT=$FFF0		; PLOT gets or sets cursor position
+SETLFS=$FFBA		; Setup logical file
+OPEN=$FFC0		; Open a logical file
+CHKIN=$FFC6		; Open channel for input
+CLALL=$FFE7		; Close all files and restore defaults
 ; ******** Kernal APIs from C128 ***************************
 SWAPPER=$FF5F
 
@@ -46,9 +50,11 @@ TMP6=$FE
 
 ; ******* Constants used in the source **********************
 Cursor=119
-Wall=113
+Wall=209
 WallCol=$0B
 Space=' '
+;Trail=224
+Trail=230
 BitCnt=9
 
 DirUp=1
@@ -75,7 +81,8 @@ DirRight=4
 .cursory	!byte	0
 
 .title		!pet	"cx16-maze",0
-.helptxt	!pet	"w,a,s,d=move spc=next r=reset q=quit",0
+.helptxt	!pet	"csrkeys=move spc=next r=reset q=quit",0
+;.helptxt	!pet	"w,a,s,d=move spc=next r=reset q=quit",0
 .lvlstr		!pet	"lvl:",0
 .lvltxt		!pet	"000",0
 
@@ -85,6 +92,122 @@ Main:
 	jsr	DrawMaze
 	jsr	GameLoop
 
+	rts
+
+; **************************************************************
+; Opens a logical file to Screen device and sets it as input
+; **************************************************************
+; INPUTS:	none
+; OUTPUTS:	none
+; VARIABLES:	none
+; CONSTANTS:	SETLFS, OPEN and CHKIN - API calls
+; REGISTERS:	A, X, Y
+; **************************************************************
+SetScrIn:
+	lda	#17		; Logical file, chosen randomly
+	ldx	#3		; Device - 3 = screen
+	ldy	#255		; Command - None
+	jsr	SETLFS
+	jsr	OPEN		; Open the logical file
+	ldx	#17
+	jsr	CHKIN		; Make it an input stream
+	rts
+
+DoDelay:
+	lda	#0
+	ldx	#0
+	ldy	#0
+	jsr	$FFDB		; SETTIM - Set real time clock
+
+-	jsr	$FFDE		; RDTIM	- Read time
+	cmp	#1		; 60 jiffies in 1 second
+	bne	-
+	rts
+
+; **************************************************************
+; Moves the cursor in the direction chosen by the user if it
+; is possible. Returns to caller when the cursor can not move
+; **************************************************************
+; INPUTS:	TMP2 ZP location contains the direction
+; OUTPUTS:	none
+; VARIABLES:	Uses .cursorx and .cursory
+; CONSTANTS:	TMP2 is used to hold direction flag
+;		DirStop, DirUp, DirLeft, DirDown, DirRight
+;		Trail
+; **************************************************************
+MoveCursor:
+	.direction=TMP2
+	.newX=TMP3
+	.newY=TMP4
+
+	ldx	.cursory
+	ldy	.cursorx
+	lda	.direction
+
+.chkUp:
+	cmp	#DirUp
+	bne	.chkLeft
+	dex			; Decrement Y coordinate
+	jmp	.newCoord
+.chkLeft:
+	cmp	#DirLeft
+	bne	.chkDown
+	dey			; Decrement X coordinate
+	jmp	.newCoord
+.chkDown:
+	cmp	#DirDown
+	bne	.chkRight
+	inx			; Increment Y coordinate
+	jmp	.newCoord
+.chkRight:
+	cmp	#DirRight	; If we reach this point and we
+	bne	.moveEnd	; do not have the direction,
+				; .direction value is malformed
+	iny			; Increment X coordinate
+
+.newCoord:
+	stx	.newY
+	sty	.newX
+
+	jsr	GotoXY		; Move to coordinate to test
+	jsr	SetScrIn	; Read character there
+	jsr	CHRIN		; Read char from current position
+
+	cmp	#Wall
+	bne	+
+	jmp	.moveEnd
+
++	cmp	#Space
+	bne	+
+	dec	.fields
++
+	jsr	CLALL		; Reset back to default input
+
+	ldx	.cursory
+	ldy	.cursorx
+	jsr	GotoXY
+	lda	#Trail
+	jsr	CHROUT
+
+	ldx	.newY
+	ldy	.newX
+	stx	.cursory
+	sty	.cursorx
+	jsr	GotoXY
+	lda	#Cursor
+	jsr	CHROUT
+
+	jsr	DoDelay
+
+	lda	#0
+	cmp	.fields
+	bne	+		; If not 0, continue
+	lda	#0
+	sta	.direction
+	jmp	.moveEnd
++	jmp	MoveCursor
+.moveEnd:
+	jsr	CLALL
 	rts
 
 ; **************************************************************
@@ -103,31 +226,34 @@ GameLoop:
 	jsr	GETIN		; Read keyboard input
 
 	cmp	#'Q'		; If Q is not pressed, check for
-	bne	.isW		; W key
+	bne	.isUP		; UP key
 	jmp	.endgl		; Q pressed, jmp to end
 
-.isW:	cmp	#'W'		; If W is not pressed, check for
-	bne	.isA		; A key
+.isUP:	cmp	#145 		; If UP is not pressed, check for
+	bne	.isLEFT		; LEFT key
 	lda	#DirUp		; Set direction to up
 	sta	.direction
 	jsr	MoveCursor	; Move the cursor
 	jmp	GameLoop	; Loop back to top
 
-.isA:	cmp	#'A'		; If A is not pressed, check for
-	bne	.isS		; S key
+.isLEFT:
+	cmp	#157		; If LEFT is not pressed, check for
+	bne	.isDOWN		; DOWN key
 	lda	#DirLeft	; Set direction to left
 	sta	.direction
 	jsr	MoveCursor	; Move the cursor
 	jmp	GameLoop	; Loop back to top
 
-.isS:	cmp	#'S'		; If S is not pressed, check for
-	bne	.isD		; D key
+.isDOWN:
+	cmp	#17		; If DOWN is not pressed, check for
+	bne	.isRIGHT	; RIGHT key
 	lda	#DirDown	; Set direction to down
 	sta	.direction
 	jsr	MoveCursor	; Move the cursor
 	jmp	GameLoop	; Loop back to top
 
-.isD:	cmp	#'D'		; If D is not pressed, check for
+.isRIGHT:
+	cmp	#29		; If RIGHT is not pressed, check for
 	bne	.isSpc		; Space key
 	lda	#DirRight	; Set direction to right
 	sta	.direction
@@ -136,7 +262,12 @@ GameLoop:
 
 .isSpc:	cmp	#' '		; If Space is not pressed, check
 	bne	.isR		; for R key
-	; Can we go to next lvl
+	lda	#0
+	cmp	.fields
+	bne	.isR
+	inc	.lvl
+	jsr	InitSCR
+	jsr	DrawMaze
 	jmp	GameLoop	; Loop back to top
 
 .isR:	cmp	#'R'		; If R is pressed
@@ -146,9 +277,6 @@ GameLoop:
 	jsr	DrawMaze
 	jmp	GameLoop	; Loop back to top
 .endgl:
-	rts
-
-MoveCursor:
 	rts
 
 ; *******************************************************************
@@ -531,7 +659,8 @@ DrawMaze:
 	jmp	.YCnt
 .EndIt:
 	lda	TMP2
-	sta	.fields
+	sta	.fields		; decrement .fields as
+	dec	.fields		; 1 field is filled by the cursor.
 
 	; Calculate cursor placement
 	ldy	#3		; Get cursor X coordinate from
