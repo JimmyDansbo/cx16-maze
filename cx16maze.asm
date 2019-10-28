@@ -261,16 +261,17 @@ GameLoop:
 
 .isSpc:	cmp	#' '		; If Space is not pressed, check
 	bne	.isR		; for R key
-	lda	#0
-	cmp	.fields
-	bne	.isR
-	inc	.lvl
-	lda	#11
-	cmp	.lvl
-	bne	+
-	lda	#1
+	lda	#0		; If .fields is down to 0
+	cmp	.fields		; the maze is complete
+	bne	.isR		; Otherwise check next key
+	inc	.lvl		; Goto next level
+	lda	#11		; If level < 11
+	cmp	.lvl		; We just go to next level
+	bne	.loadLevel	; Otherwise we reset back to
+	lda	#1		; level 1
 	sta	.lvl
-+	jsr	InitSCR
+.loadLevel:
+	jsr	InitSCR
 	jsr	DrawMaze
 	jmp	GameLoop	; Loop back to top
 
@@ -362,10 +363,6 @@ InitSCR:
 	jsr	PrintStr
 
 	jsr	LVLtoPET ; Create level as a petscii string
-
-;	ldx	#1
-;	ldy	#35
-;	jsr	GotoXY
 
 	ldx	#<.lvltxt
 	ldy	#>.lvltxt
