@@ -31,7 +31,7 @@ OPEN=$FFC0		; Open a logical file
 CHKIN=$FFC6		; Open channel for input
 CLALL=$FFE7		; Close all files and restore defaults
 ; ******** Kernal APIs from C128 ***************************
-SWAPPER=$FF5F
+SCRMOD=$FF5F
 
 ; ******** Commander X16 specific **************************
 COLPORT=$0286		; This address contains both background (high nibble)
@@ -43,18 +43,18 @@ TMP0=$00		; The first 3 unused zero page locations are used
 TMP1=$01		; as temporary storage (registers)
 TMP2=$02
 
-TMP3=$FB		; The last 4 unused zero page locations are also
-TMP4=$FC		; used as temporary storage (registers)
-TMP5=$FD
-TMP6=$FE
+TMP3=$03		; The last 4 unused zero page locations are also
+TMP4=$04		; used as temporary storage (registers)
+TMP5=$05
+TMP6=$06
 
 ; ******* Constants used in the source **********************
 Cursor=119
-Wall=209
-WallCol=$0B
+Wall=191
+WallCol=$BB
 Space=' '
-;Trail=224
-Trail=230
+Trail=224
+TrailCol=$40
 BitCnt=9
 
 DirUp=1
@@ -288,19 +288,21 @@ GameLoop:
 ; Initializes the screen
 ; *******************************************************************
 ; INPUTS:	Gloabl variables
-;			.lvl
+;		InitSC	.lvl
 ;			.title
 ;			.helptxt
 ;			.lvlstr
 ;			.lvltxt
 ; *******************************************************************
 InitSCR:
-	lda	$D9	; $D9 contains the number of columns being shown
+	lda	$02AE	; $02AE contains the number of columns being shown
 	cmp	#80	; if this is 80, we will switch to 40x30
 	beq	.SetIt	; Set 40 column mode
 	jmp	.NoSet
 .SetIt:
-	jsr	SWAPPER	; Switch screenmode
+	lda	#$00	; 40x30 text
+	sec		; Ensure carry is set otherwise SCRMOD does not work
+	jsr	SCRMOD	; Switch screenmode
 .NoSet:
 	lda	#$01	; Black background, white text
 	sta	COLPORT	; Set Color
@@ -596,7 +598,7 @@ DrawMaze:
 	tax			; Starting Y coordinate
 	stx	.mazesy
 
-	lda	#WallCol	; Set color, black background, darkgray text
+	lda	#$00		; Set color, black background, black text
 	sta	COLPORT
 
 	; Draw the maze (this is a big mess)
@@ -648,7 +650,7 @@ DrawMaze:
 	inc	TMP2		; Another field needs to be colored to finish maze
 	jmp	+
 .DrawWall:
-	lda	#Wall
+	lda	#29		; Curser right (write nothing)
 +	jsr	CHROUT
 
 	; endof for .colcnt = .mazewidth downto 0
@@ -686,7 +688,7 @@ DrawMaze:
 	jsr	GotoXY
 
 	; Set the cursor color and print the cursor
-	lda	#$40		; Purple/Black
+	lda	#TrailCol		; Purple/Black
 	sta	COLPORT
 
 	lda	#Cursor		; Print the cursor in the right place
