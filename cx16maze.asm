@@ -19,6 +19,9 @@
 ; In 40x30 mode, I can avoid scrolling on the bottom right corner by
 ; setting the value in $DA to 31 instead of 30.
 
+; Above information has changed in R34. Now the columns are at $02AE
+; and the lines are at $02AF
+
 ; ******** Kernal APIs - C64 API can be found here: *******
 ; http://sta.c64.org/cbm64krnfunc.html
 CHROUT=$FFD2		; CHROUT outputs a character (C64 Kernal API)
@@ -30,7 +33,7 @@ SETLFS=$FFBA		; Setup logical file
 OPEN=$FFC0		; Open a logical file
 CHKIN=$FFC6		; Open channel for input
 CLALL=$FFE7		; Close all files and restore defaults
-; ******** Kernal APIs from C128 ***************************
+; ******** Kernal APIs from CX16 ***************************
 SCRMOD=$FF5F
 
 ; ******** Commander X16 specific **************************
@@ -38,6 +41,10 @@ COLPORT=$0286		; This address contains both background (high nibble)
 			; and foreground (low nibble) color. Writing to it
 			; changes the colors. On C64 only foreground color
 			; can be changed in low nibble
+
+			; This is remaining from older versions of the
+			; CX16 emulator where only a handfull of ZP
+			; addresses where available to the user.
 
 TMP0=$00		; The first 3 unused zero page locations are used
 TMP1=$01		; as temporary storage (registers)
@@ -114,12 +121,12 @@ SetScrIn:
 
 DoDelay:
 	lda	#0
-	ldx	#0
-	ldy	#0
+	tax
+	tay
 	jsr	$FFDB		; SETTIM - Set real time clock
 
 -	jsr	$FFDE		; RDTIM	- Read time
-	cmp	#1		; 60 jiffies in 1 second
+	cmp	#3		; 60 jiffies in 1 second
 	bne	-
 	rts
 
@@ -206,7 +213,7 @@ MoveCursor:
 	jmp	.moveEnd
 +	jmp	MoveCursor
 .moveEnd:
-	jsr	CLALL
+	jsr	CLALL		; Reset back to default input
 	rts
 
 ; **************************************************************
