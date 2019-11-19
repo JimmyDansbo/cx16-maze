@@ -61,8 +61,8 @@ Wall=191
 WallCol=$BB
 Space=' '
 Trail=224
-TrailCol=$40
-BitCnt=9
+		; 1=white,2=red,3=cyan,4=purple,5=green,6=blue,7=yellow
+BitCnt=9	; 8=orange,9=brown,A=lred,B=gray,C=lgray,D=lgreen,E=lblue,F=white
 
 DirUp=1
 DirLeft=2
@@ -81,11 +81,13 @@ DirRight=4
 .mazesx		!byte	00
 .mazesy		!byte	00
 .fields		!byte	0
-.currbyte	!byte	$ff
+.currbyte	!byte	$FF
 .mazeheight	!byte	00
 .mazewidth	!byte	00
 .cursorx	!byte 	0
 .cursory	!byte	0
+.rndnum		!byte	$2B
+.trailcol	!byte	0
 
 .title		!pet	"cx16-maze",0
 .helptxt	!pet	"csrkeys=move spc=next r=reset q=quit",0
@@ -98,6 +100,38 @@ Main:
 	jsr	DrawMaze
 	jsr	GameLoop
 
+	rts
+
+; This Pseudo Random Number Generator (PRNG) was found at
+; https://codebase64.org/doku.php?id=base:small_fast_8-bit_prng
+Random:
+	lda	.rndnum
+	beq	doeor
+	asl
+	beq	noeor
+	bcc	noeor
+doeor:	eor	#$1D
+noeor:
+	sta	.rndnum
+	rts
+
+; ***************************************************************
+; Sets a random color for the trail of the maze
+; ***************************************************************
+; INPUTS:	none
+; OUTPUTS:	none
+; VARIABLES:	.rndnum & .trailcol
+; CONSTANTS:	none
+; REGISTERS:	A
+; ***************************************************************
+SetTrailCol:
+	jsr	Random
+	lda	#$F0		; Only the high nibble is
+	and	.rndnum		; randomized as low nibble is 0
+	beq	SetTrailCol	; If result is 0, try again
+	cmp	#$B0		; if result is $B0, try again
+	beq	SetTrailCol
+	sta	.trailcol	; Store the new color
 	rts
 
 ; **************************************************************
@@ -229,6 +263,7 @@ MoveCursor:
 GameLoop:
 	.direction=TMP2
 
+	jsr	Random
 	jsr	GETIN		; Read keyboard input
 
 	cmp	#'Q'		; If Q is not pressed, check for
@@ -558,6 +593,8 @@ LVLtoPET:
 ; INPUTS:	.lvl and .mazes will be used to see which maze to draw
 ; *******************************************************************
 DrawMaze:
+	jsr	SetTrailCol	; Set a random color for the trail
+
 	lda	#<.mazes	; load A with LSB
 	sta	TMP0		; Store in TMP0 ($00)
 	lda	#>.mazes	; load A with MSB
@@ -695,7 +732,7 @@ DrawMaze:
 	jsr	GotoXY
 
 	; Set the cursor color and print the cursor
-	lda	#TrailCol		; Purple/Black
+	lda	.trailcol
 	sta	COLPORT
 
 	lda	#Cursor		; Print the cursor in the right place
