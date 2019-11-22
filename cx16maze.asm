@@ -37,6 +37,7 @@ CLALL=$FFE7		; Close all files and restore defaults
 SCRMOD=$FF5F
 
 ; ******** Commander X16 specific **************************
+;COLPORT=$02C9		; For ROM version > 34 ???
 COLPORT=$0286		; This address contains both background (high nibble)
 			; and foreground (low nibble) color. Writing to it
 			; changes the colors. On C64 only foreground color
@@ -93,13 +94,161 @@ DirRight=4
 .helptxt	!pet	"csrkeys=move spc=next r=reset q=quit",0
 .lvlstr		!pet	"lvl:",0
 .lvltxt		!pet	"000",0
+.CX16		!pet 	"commander  ",18," ",146," ",18," ",146,"  16",0
+.xl1		!pet	127,18,"  ",127,146,"   ",18,169,"  ",146,169,0
+.xl2		!pet	127,18,"  ",127,146," ",18,169,"  ",146,169,0
+.xl3		!pet	127,18,"  ",146," ",18,"  ",146,169,0
+.xl5		!pet	18,169,"  ",146," ",18,"  ",127,146,0
+.xl6		!pet	18,169,"  ",146,169," ",127,18,"  ",127,146,0
+.xl7		!pet	18,169,"  ",146,169,"   ",127,18,"  ",127,146,0
 
+.ml1		!pet	"*   *    *    *****  *****",0
+.ml2		!pet	"** **   * *      *   *",0
+.ml3		!pet	"* * *  *****    *    ***",0
+.ml4		!pet	"*   *  *   *   *     *",0
+.ml5		!pet	"*   *  *   *  *****  *****",0
+
+.starttxt	!pet	"press return/enter",0
 
 Main:
+	jsr	SplashScreen
 	jsr	InitSCR
 	jsr	DrawMaze
 	jsr	GameLoop
 
+	rts
+
+SplashScreen:
+	lda	$02AE	; $02AE contains the number of columns being shown
+	cmp	#80	; if this is 80, we will switch to 40x30
+	beq	.SetIt	; Set 40 column mode
+	jmp	.NoSet
+.SetIt:
+	lda	#$00	; 40x30 text
+	sec		; Ensure carry is set otherwise SCRMOD does not work
+	jsr	SCRMOD	; Switch screenmode
+.NoSet:
+	lda	#$00
+	sta	COLPORT
+	lda	#147
+	jsr	CHROUT
+
+	;COMMANDER X16
+	ldx	#5
+	ldy	#10
+	jsr	GotoXY
+	lda	#$05
+	sta	COLPORT
+	ldx	#<.CX16
+	ldy	#>.CX16
+	jsr	PrintStr
+
+	lda	#$04
+	sta	COLPORT
+	ldx	#2
+	ldy	#17
+	jsr	GotoXY
+	ldx	#<.xl1
+	ldy	#>.xl1
+	jsr	PrintStr
+
+	lda	#$0E
+	sta	COLPORT
+	ldx	#3
+	ldy	#18
+	jsr	GotoXY
+	ldx	#<.xl2
+	ldy	#>.xl2
+	jsr	PrintStr
+
+	lda	#$03
+	sta	COLPORT
+	ldx	#4
+	ldy	#19
+	jsr	GotoXY
+	ldx	#<.xl3
+	ldy	#>.xl3
+	jsr	PrintStr
+
+	lda	#$07
+	sta	COLPORT
+	ldx	#6
+	ldy	#19
+	jsr	GotoXY
+	ldx	#<.xl5
+	ldy	#>.xl5
+	jsr	PrintStr
+
+	lda	#$08
+	sta	COLPORT
+	ldx	#7
+	ldy	#18
+	jsr	GotoXY
+	ldx	#<.xl6
+	ldy	#>.xl6
+	jsr	PrintStr
+
+	lda	#$02
+	sta	COLPORT
+	ldx	#8
+	ldy	#17
+	jsr	GotoXY
+	ldx	#<.xl7
+	ldy	#>.xl7
+	jsr	PrintStr
+
+	; MAZE
+	lda	#$05
+	sta	COLPORT
+	ldx	#20
+	ldy	#7
+	jsr	GotoXY
+	ldx	#<.ml1
+	ldy	#>.ml1
+	jsr	PrintStr
+
+	ldx	#21
+	ldy	#7
+	jsr	GotoXY
+	ldx	#<.ml2
+	ldy	#>.ml2
+	jsr	PrintStr
+
+	ldx	#22
+	ldy	#7
+	jsr	GotoXY
+	ldx	#<.ml3
+	ldy	#>.ml3
+	jsr	PrintStr
+
+	ldx	#23
+	ldy	#7
+	jsr	GotoXY
+	ldx	#<.ml4
+	ldy	#>.ml4
+	jsr	PrintStr
+
+	ldx	#24
+	ldy	#7
+	jsr	GotoXY
+	ldx	#<.ml5
+	ldy	#>.ml5
+	jsr	PrintStr
+
+	lda	#$01
+	sta	COLPORT
+	ldx	#15
+	ldy	#11
+	jsr	GotoXY
+	ldx	#<.starttxt
+	ldy	#>.starttxt
+	jsr	PrintStr
+
+.wloop
+	jsr	Random
+	jsr	GETIN
+	cmp	#13
+	bne	.wloop
 	rts
 
 ; This Pseudo Random Number Generator (PRNG) was found at
@@ -337,15 +486,6 @@ GameLoop:
 ;			.lvltxt
 ; *******************************************************************
 InitSCR:
-	lda	$02AE	; $02AE contains the number of columns being shown
-	cmp	#80	; if this is 80, we will switch to 40x30
-	beq	.SetIt	; Set 40 column mode
-	jmp	.NoSet
-.SetIt:
-	lda	#$00	; 40x30 text
-	sec		; Ensure carry is set otherwise SCRMOD does not work
-	jsr	SCRMOD	; Switch screenmode
-.NoSet:
 	lda	#$01	; Black background, white text
 	sta	COLPORT	; Set Color
 
@@ -560,8 +700,7 @@ LVLtoPET:
 
 	sta	.value	; Save current value as we need the accumulator
 	lda	.digit
-	clc		; Clear carry to ensure correct add
-	adc	#$30	; Add $30 to digit to get petscii char
+	ora	#$30	; OR $30 with digit to get petscii char
 	sta	.lvltxt+1;Write digit to 2nd space of .lvltxt
 
 	lda	.value	; Restore value into A register
@@ -581,8 +720,7 @@ LVLtoPET:
 	dec	.digit
 	jmp	.DoTens
 .Ones:
-	clc		; Clear carry to ensure correct add
-	adc	#$30	; Add $30 to get petscii char
+	ora	#$30	; OR $30 with digit to get petscii char
 	sta	.lvltxt+2;Write digit to 3rd space of .lvltxt
 .allDone:
 	rts
