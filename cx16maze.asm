@@ -33,6 +33,8 @@ SETLFS=$FFBA		; Setup logical file
 OPEN=$FFC0		; Open a logical file
 CHKIN=$FFC6		; Open channel for input
 CLALL=$FFE7		; Close all files and restore defaults
+SETTIM=$FFDB		; Set realtime clock
+RDTIM=$FFDE		; Read realtime clock
 ; ******** Kernal APIs from CX16 ***************************
 SCRMOD=$FF5F
 
@@ -43,6 +45,8 @@ COLPORT=$0286		; This address contains both background (high nibble)
 			; changes the colors. On C64 only foreground color
 			; can be changed in low nibble
 
+NUMCOLS=$02AE
+NUMLINES=$02AF
 			; This is remaining from older versions of the
 			; CX16 emulator where only a handfull of ZP
 			; addresses where available to the user.
@@ -62,8 +66,8 @@ Wall=191
 WallCol=$BB
 Space=' '
 Trail=224
-		; 1=white,2=red,3=cyan,4=purple,5=green,6=blue,7=yellow
-BitCnt=9	; 8=orange,9=brown,A=lred,B=gray,C=lgray,D=lgreen,E=lblue,F=white
+
+BitCnt=9
 
 DirUp=1
 DirLeft=2
@@ -119,7 +123,7 @@ Main:
 	rts
 
 SplashScreen:
-	lda	$02AE	; $02AE contains the number of columns being shown
+	lda	NUMCOLS	; $02AE contains the number of columns being shown
 	cmp	#80	; if this is 80, we will switch to 40x30
 	beq	.SetIt	; Set 40 column mode
 	jmp	.NoSet
@@ -133,7 +137,7 @@ SplashScreen:
 	lda	#147
 	jsr	CHROUT
 
-	;COMMANDER X16
+	; COMMANDER X16
 	ldx	#5
 	ldy	#10
 	jsr	GotoXY
@@ -235,9 +239,10 @@ SplashScreen:
 	ldy	#>.ml5
 	jsr	PrintStr
 
+	; Start text
 	lda	#$01
 	sta	COLPORT
-	ldx	#15
+	ldx	#14
 	ldy	#11
 	jsr	GotoXY
 	ldx	#<.starttxt
@@ -245,8 +250,8 @@ SplashScreen:
 	jsr	PrintStr
 
 .wloop
-	jsr	Random
-	jsr	GETIN
+	jsr	Random		; Call the random generator
+	jsr	GETIN		; While waiting for user to press enter
 	cmp	#13
 	bne	.wloop
 	rts
@@ -302,14 +307,23 @@ SetScrIn:
 	jsr	CHKIN		; Make it an input stream
 	rts
 
+; **************************************************************
+; Waits for a given number of jiffies, there are 60 jiffies
+; in a second
+; **************************************************************
+; INPUTS:	TMP5 should contain the amount of jiffies to wait
+; OUTPUTS:	none
+; VARIABLES:	NONE
+; CONSTANTS:	SETTIME & RDTIM
+; REGISTERS:	NONE
 DoDelay:
 	lda	#0
 	tax
 	tay
-	jsr	$FFDB		; SETTIM - Set real time clock
+	jsr	SETTIM		; SETTIM - Set real time clock
 
--	jsr	$FFDE		; RDTIM	- Read time
-	cmp	#3		; 60 jiffies in 1 second
+-	jsr	RDTIM		; RDTIM	- Read time
+	cmp	TMP5		; 60 jiffies in 1 second
 	bne	-
 	rts
 
@@ -386,12 +400,14 @@ MoveCursor:
 	lda	#Cursor
 	jsr	CHROUT
 
+	lda	#3
+	sta	TMP5
 	jsr	DoDelay
 
 	lda	#0
 	cmp	.fields
 	bne	+		; If not 0, continue
-	lda	#0
+
 	sta	.direction
 	jmp	.moveEnd
 +	jmp	MoveCursor
@@ -423,56 +439,75 @@ GameLoop:
 	bne	.isLEFT		; LEFT key
 	lda	#DirUp		; Set direction to up
 	sta	.direction
-	jsr	MoveCursor	; Move the cursor
-	jmp	GameLoop	; Loop back to top
+	jmp	.doDirection
 
 .isLEFT:
 	cmp	#157		; If LEFT is not pressed, check for
 	bne	.isDOWN		; DOWN key
 	lda	#DirLeft	; Set direction to left
 	sta	.direction
-	jsr	MoveCursor	; Move the cursor
-	jmp	GameLoop	; Loop back to top
+	jmp	.doDirection
 
 .isDOWN:
 	cmp	#17		; If DOWN is not pressed, check for
 	bne	.isRIGHT	; RIGHT key
 	lda	#DirDown	; Set direction to down
 	sta	.direction
-	jsr	MoveCursor	; Move the cursor
-	jmp	GameLoop	; Loop back to top
+	jmp	.doDirection
 
 .isRIGHT:
 	cmp	#29		; If RIGHT is not pressed, check for
-	bne	.isSpc		; Space key
+	bne	.isR		; Space key
 	lda	#DirRight	; Set direction to right
 	sta	.direction
-	jsr	MoveCursor	; Move the cursor
-	jmp	GameLoop	; Loop back to top
 
-.isSpc:	cmp	#' '		; If Space is not pressed, check
-	bne	.isR		; for R key
-	lda	#0		; If .fields is down to 0
-	cmp	.fields		; the maze is complete
-	bne	.isR		; Otherwise check next key
-	inc	.lvl		; Goto next level
-	lda	#11		; If level < 11
-	cmp	.lvl		; We just go to next level
-	bne	.loadLevel	; Otherwise we reset back to
-	lda	#1		; level 1
-	sta	.lvl
-.loadLevel:
-	jsr	InitSCR
-	jsr	DrawMaze
-	jmp	GameLoop	; Loop back to top
+.doDirection:
+	jsr	MoveCursor	; Move the cursor
+	cmp	.direction
+	bne	.isR
+	jsr	LevelComplete
+	jmp	.doR		; Loop back to top
 
 .isR:	cmp	#'R'		; If R is pressed
 	beq	.doR
 	jmp	GameLoop	; If R is not pressed, loop to top
+
 .doR:	jsr	FillGA		; Reset the level
+	lda	#$12
+	sta	COLPORT
+	ldx	#1	; Set up for level text (top right corner)
+	ldy	#35
+	jsr	GotoXY
+	jsr	LVLtoPET ; Create level as a petscii string
+	ldx	#<.lvltxt
+	ldy	#>.lvltxt
+	jsr	PrintStr
+
 	jsr	DrawMaze
 	jmp	GameLoop	; Loop back to top
 .endgl:
+	rts
+
+LevelComplete:
+
+	lda	#10
+	sta	TMP5
+	inc	.lvl
+	lda	#11
+	cmp	.lvl
+	bne	.blinkborder
+	lda	#1
+	sta	.lvl
+.blinkborder:
+	jsr	Random
+	lda	#$F0
+	and	.rndnum
+	sta	COLPORT
+	jsr	DrawOutBorder
+	jsr	DoDelay
+	jsr	GETIN
+	cmp	#' '
+	bne	.blinkborder
 	rts
 
 ; *******************************************************************
@@ -608,6 +643,53 @@ FillGA:
 .EndOfFill
 	rts
 
+DrawOutBorder:
+	sta	COLPORT
+	; Top horizontal line
+	ldx	#0
+	ldy	#0
+	jsr	GotoXY
+	ldx	#39
+	lda	#' '
+	jsr	HLine
+
+	; Left vertical line
+	ldx	#1
+	ldy	#0
+	jsr	GotoXY
+	ldx	#28
+	lda	#' '
+	jsr	VLine
+
+	; Right vertical line
+	ldx	#0
+	ldy	#39
+	jsr	GotoXY
+	ldx	#29
+	lda	#' '
+	jsr	VLine
+
+	; The number of lines is 30 because we are in 40x30 mode
+	; By setting the number of lines to 31, we ensure that the
+	; screen does not scroll when the cursor goes beyound the
+	; last character on the bottom line
+	lda	#31
+	sta	NUMLINES
+
+	; Bottom horizontal line
+	ldx	#29
+	ldy	#0
+	jsr	GotoXY
+	ldx	#40
+	lda	#' '
+	jsr	HLine
+
+	; Reset the number of lines back to standard
+	lda	#30
+	sta	NUMLINES
+
+	rts
+
 ; *******************************************************************
 ; Print a vertical line
 ; *******************************************************************
@@ -615,19 +697,15 @@ FillGA:
 ;		X = Height of the line
 ; *******************************************************************
 VLine:
-	stx	TMP0	; Store line height in TMP0 variable
-	sec		; Set carry flag to get cursor position
-	jsr	PLOT	; Get cursor postition into Y and X
-	stx	TMP1	; Store Y position in TMP1 variable
-
-.loopVL	jsr	CHROUT	; Write character
-	inc	TMP1	; Increment Y position
-	sta	TMP2	; Save A register as it is changed by GotoXY
-	ldx	TMP1	; Load Y position into X register
-	jsr	GotoXY	; Move cursor
-	lda	TMP2	; Restore A register (character)
-	dec	TMP0	; Decrement line height
-	bne	.loopVL	; Jump to top if we have not reached 0
+	jsr	CHROUT	; Write character
+	tay		; Save character in Y register
+	lda	#157	; Cursoer Left
+	jsr	CHROUT
+	lda	#17	; Cursor Down
+	jsr	CHROUT
+	tya		; Restore character to A register
+	dex		; Decrement line height
+	bne	VLine	; Jump to top if we have not reached 0
 	rts
 
 ; *******************************************************************
