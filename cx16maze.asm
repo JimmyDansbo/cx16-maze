@@ -59,6 +59,8 @@ TMP3=$03		; The last 4 unused zero page locations are also
 TMP4=$04		; used as temporary storage (registers)
 TMP5=$05
 TMP6=$06
+TMP7=$07
+TMP8=$08
 
 ; ******* Constants used in the source **********************
 Cursor=119
@@ -73,21 +75,16 @@ DirLeft=2
 DirDown=3
 DirRight=4
 
-NUMLEVELS=10
+NUMLEVELS=18
 
 
 ; ******* Global variables **********************************
 	jmp	Main
 
 .lvl		!byte	1
-.bytecnt	!byte	0
-.bitcnt		!byte	0
-.linecnt	!byte	0
-.colcnt		!byte	0
 .mazesx		!byte	00
 .mazesy		!byte	00
 .fields		!byte	0
-.currbyte	!byte	$FF
 .mazeheight	!byte	00
 .mazewidth	!byte	00
 .cursorx	!byte 	0
@@ -281,161 +278,183 @@ GameLoop:
 .endgl:
 	rts
 
+
 ; *******************************************************************
-; Draw the maze in the gamearea and place the "cursor"
+; Find and draw the current maze on the gameboard
 ; *******************************************************************
-; INPUTS:	.lvl and .mazes will be used to see which maze to draw
+; INPUTS:	.lvl and .mazes is used to find the maze to draw
 ; *******************************************************************
 DrawMaze:
-	jsr	SetTrailCol	; Set a random color for the trail
+	.mazeaddr=TMP0		; Base address of current maze is held
+				; in TMP0 and TMP1
+	.linecnt=TMP2		; Counts lines of the maze (Y)
+	.offset=TMP3		; Offset into maze data
+	.currbyte=TMP4		; Value of current byte
+	.bitcnt=TMP5		; Bit counter
+	.rowcnt=TMP6		; Counts columns/rows of the maze (X)
 
-	lda	#<.mazes	; load A with LSB
-	sta	TMP0		; Store in TMP0 ($00)
-	lda	#>.mazes	; load A with MSB
-	sta	TMP0+1		; Store in TMP0+1 = TMP1 ($01)
-	; TMP0 can now be used as a pointer to .mazes
+	jsr	FindMaze
+	jsr	GetMazeVals
 
-	ldx	.lvl		; Load current level
-	; First byte in a maze is the total size of the maze. It is used
-	; to calculate where en memory the next maze is found
-.findMaze
-	dex			; Level1 is the first level, but mazes are
-				; indexed from 0 so decrement the level
-	beq	.loadMaze	; If we have reached 0, we have reached the
-				; right maze
-	ldy	#0		; Y is used as index in indirect adressing
-	lda	(TMP0),Y	; Load size of current maze
-	clc			; Clear carry to ensure correct addition
-	adc	TMP0		; Add current maze size to LSB of maze address
-	sta	TMP0		; Store the new LSB
-	lda	TMP1		; Load A with MSB of maze address
-	adc	#0		; Add 0 (carry from previous addition will
-				; ensure correct result)
-	sta	TMP1		; Store the new MSB
-	jmp	.findMaze
-.loadMaze
-	ldy	#1
-	lda	(TMP0),Y
-	sta	TMP2		; Maze width
-	sta	.mazewidth
-	iny
-	lda	(TMP0),Y
-	sta	TMP3		; Maze height
-	sta	.mazeheight
-
-	; Calculate top left corner of the maze by calculating
-	; half of the maze width and half of maze height and subtracting
-	; it from 20=horizontal center and 15=vertical center of screen.
-	clc
-	lsr	TMP2		; Maze width / 2
-	clc
-	lsr	TMP3		; Maze height / 2
-	lda	#20
-	sec
-	sbc	TMP2
-	tay			; Starting X coordinate
-	sty	.mazesx
-	lda	#15
-	sec
-	sbc	TMP3
-	tax			; Starting Y coordinate
-	stx	.mazesy
-
-	lda	#$00		; Set color, black background, black text
+	lda	#$00
 	sta	COLPORT
+	; Each time an empty space is drawn in the maze, the .fields
+	; variable is incremented. That makes it a simple matter of
+	; decrementing the .fields variable each time the cursor
+	; passes an empty field and when it reaches 0, the maze is
+	; completed.
+	sta	.fields
 
-	; Draw the maze (this is a big mess)
-	ldy	#0		;Number of fields that needs to be colored.
-	sty	TMP2
+	ldy	#5		; Offset of maze data
+	sty	.offset
 
-	ldy	#5		;offset of maze data
-	sty	.bytecnt
-	; for .linecnt = .mazeheight downto 0
-	lda	.mazeheight
-	sta	.linecnt
-.YCnt:
-	ldy	.bytecnt	; Load byte from maze data
-	lda	(TMP0),Y
-	sta	.currbyte	; store it in .currbyte variable
+	lda	.mazeheight	; Copy mazeheight to linecnt so we can
+	sta	.linecnt	; use it for couting down
+.Ycnt:
+	ldy	.offset		; Load a byte from maze data
+	lda	(.mazeaddr),y
+	sta	.currbyte	; Store it in .currbyte variable
 
-	; gotoxy .mazesx, .mazesy+(.mazeheight-.linecnt)
+	; Calculate .mazesy+(.mazeheight-.linecnt)
+	; This calculates the correct Y coordinate for the current line
 	lda	.mazeheight
 	sec
-	sbc	.linecnt
+	sbc	.linecnt	; (.mazeheight-.linecnt)
 	clc
-	adc	.mazesy
+	adc	.mazesy		; + .mazesy
 	tax
 	ldy	.mazesx
-	jsr	GotoXY
+	jsr	GotoXY		; Move cursor to the start coord of this line
 
-	; .bitcnt = 9
 	lda	#BitCnt
 	sta	.bitcnt
 
-	; for .colcnt = .mazewidth downto 0
 	lda	.mazewidth
-	sta	.colcnt
-.XCnt:
-	dec	.bitcnt
-	; if .bitcnt = 0, go to next byte from maze
-	bne	.ByteStillGood
-	inc	.bytecnt
-	ldy	.bytecnt
-	lda	(TMP0),Y
+	sta	.rowcnt
+.Xcnt:
+	dec	.bitcnt		;
+	bne	.ByteGood	; If .bitcnt>0 jump to handle current byte
+	; Read new byte from maze data
+	inc	.offset
+	ldy	.offset
+	lda	(.mazeaddr),y
 	sta	.currbyte
 	ldy	#BitCnt
 	sty	.bitcnt
-.ByteStillGood:
-	asl	.currbyte
-	bcs	.DrawWall
-	lda	#' '
-	inc	TMP2		; Another field needs to be colored to finish maze
-	jmp	.doWrt
-.DrawWall:
-	lda	#29		; Curser right (write nothing)
-.doWrt:	jsr	CHROUT
+	jmp	.Xcnt
+	; Handle current byte
+.ByteGood:
+	asl	.currbyte	; Check next bit
+	bcs	.wall		; If Carry set, leave the wall char in place
+	lda	#' '		; If Carry clear, load space character
+	inc	.fields		; Another field needs color to finish maze
+	jmp	.write
+.wall:
+	lda	#29		; Load "cursor right" to leave wall in place
+.write:	jsr	CHROUT		; Do the output
 
-	; endof for .colcnt = .mazewidth downto 0
-	dec	.colcnt
-	beq	.EndXCnt
-	jmp	.XCnt
-.EndXCnt:
-	inc	.bytecnt
-	lda	#BitCnt
-	sta	.bitcnt
-	; endof for .linecnt = .mazeheight downto 0
+	dec	.rowcnt
+	beq	.endX
+	jmp	.Xcnt
+.endX:
+	inc	.offset
+
 	dec	.linecnt
-	beq	.EndIt
-	jmp	.YCnt
-.EndIt:
-	lda	TMP2
-	sta	.fields		; decrement .fields as
-	dec	.fields		; 1 field is filled by the cursor.
-
-	; Calculate cursor placement
-	ldy	#3		; Get cursor X coordinate from
-	lda	(TMP0),Y	; maze data
+	beq	.endIt
+	jmp	.Ycnt
+.endIt:
+	dec	.fields
+	jsr	SetTrailCol
+	jsr	PlaceInitCursor
+	rts
+; *******************************************************************
+; Calculate and store the cursor position and draw the cursor on
+; the screen
+; *******************************************************************
+; INPUTS:	Expects address of maze in TMP0 and TMP1
+; OUTPUTS:	.cursorx and .cursory
+; *******************************************************************
+PlaceInitCursor:
+	ldy	#3
+	lda	(TMP0),y	; Get cursor X coordinate from maze data
 	clc
-	adc	.mazesx		; Add it to maze start X coordinate
-	sta	TMP2		; Save it in ZP while Y is calculated
-
-	ldy	#4		; Get cursor Y coordinate from
-	lda	(TMP0),Y	; maze data
+	adc	.mazesx		; Add it to the maze top left X coordinate
+	sta	.cursorx	; Save the cursor X coordinate for later use
+	iny
+	lda	(TMP0),y	; Get cursor Y coordinate from maze data
 	clc
-	adc	.mazesy		; Add it to maze start Y coordinate
-	tax			; Y coordinate in X register
-	ldy	TMP2		; X coordinate in Y register
-	stx	.cursory
-	sty	.cursorx
+	adc	.mazesy		; Att it to the maze top left Y coordinate
+	sta	.cursory	; Save the cursor Y coordinate for later use
+
+	; Move the cursor on the screen to the calculated coordinates
+	tax
+	ldy	.cursorx
 	jsr	GotoXY
 
-	; Set the cursor color and print the cursor
-	lda	.trailcol
+	lda	.trailcol	; Set the color to draw with
 	sta	COLPORT
 
-	lda	#Cursor		; Print the cursor in the right place
+	lda	#Cursor		; Draw the cursor
 	jsr	CHROUT
+	rts
 
+; *******************************************************************
+; Find maze height and width and calculate coordinates for top
+; left corner of the maze
+; *******************************************************************
+; INPUTS:	Expects address of maze in TMP0 and TMP1
+; OUTPUTS:	.mazewidth, .mazeheight, .mazesx & .mazesy
+; *******************************************************************
+GetMazeVals:
+	ldy	#$01
+	lda	(TMP0),y	; Load maze width
+	sta	.mazewidth	; store it in variable and ZP memory
+	sta	TMP2		; to do calculations
+	iny
+	lda	(TMP0),y	; Load maze height
+	sta	.mazeheight	; store it in variable and ZP memory
+	sta	TMP3		; to do calculations
+
+	lsr	TMP2		; Divide width by 2 (half it)
+	lsr	TMP3		; Divide height by 2 (half it)
+
+	lda	#40/2		; Load A with half of the screen width
+	sec
+	sbc	TMP2		; Subtract half of the maze width
+	sta	.mazesx		; Save the X coordinate of top left corner
+
+	lda	#30/2		; Load A with half of the screen height
+	sec
+	sbc	TMP3		; Subtract half of the maze height
+	sta	.mazesy		; Save the Y coordinate of top left corner
+	rts
+
+; *******************************************************************
+; Find the correct maze for the current level
+; *******************************************************************
+; INPUTS:	.lvl and .mazes will be used to see which maze to draw
+; OUTPUTS:	Stores address to current maze in TMP0 and TMP1
+; *******************************************************************
+FindMaze:
+	lda	#<.mazes	; Load address of first maze into
+	sta	TMP0		; ZP memory to use it for indirect
+	lda	#>.mazes	; adressing.
+	sta	TMP1
+
+	ldx	.lvl		; Load current level
+.findMaze:
+	dex			; Count down to 0 to find the right maze
+	beq	.FoundIt	; If we are at 0, we found it
+	ldy	#0		; Load size of current maze
+	lda	(TMP0),y
+	clc			; Add maze size to address of current
+	adc	TMP0		; maze. This is done by adding the
+	sta	TMP0		; size to LSB followed by adding 0 to
+	lda	TMP1		; MSB while retaining the carry bit from
+	adc	#0		; the first addition. This is how an 8 bit
+	sta	TMP1		; number is added to a 16 bit number
+	jmp	.findMaze	; Check next
+.FoundIt:
 	rts
 
 ; *******************************************************************
@@ -1161,4 +1180,141 @@ GotoXY:
 	!byte	%..#.....,%..######
 	!byte	%#.......,%########
 	!byte	%###....#,%########
+
+	; Level 11
+	!byte	31,13,13
+	!byte	0,12
+	!byte	%#..#####,%####.###
+	!byte	%#....###,%##...###
+	!byte	%#....###,%.....###
+	!byte	%#......#,%.....###
+	!byte	%#......#,%.....###
+	!byte	%#.....##,%.....###
+	!byte	%........,%.....###
+	!byte	%......#.,%.....###
+	!byte	%......#.,%.....###
+	!byte	%......#.,%.....###
+	!byte	%......#.,%.....###
+	!byte	%....####,%#....###
+	!byte	%..######,%###..###
+
+	; Level 12
+	!byte	31,13,13
+	!byte	0,0
+	!byte	%........,%.....###
+	!byte	%####.###,%####.###
+	!byte	%###.....,%.###.###
+	!byte	%##......,%..##.###
+	!byte	%#.......,%#.##.###
+	!byte	%#.#.....,%...#.###
+	!byte	%#.##.#.#,%#..#.###
+	!byte	%#....#.#,%#..#.###
+	!byte	%#...##.#,%..##.###
+	!byte	%###.##.#,%.###.###
+	!byte	%###.....,%.....###
+	!byte	%###.....,%..######
+	!byte	%######..,%.#######
+
+	; Level 13
+	!byte	29,12,12
+	!byte	0,11
+	!byte	%####...#,%....####
+	!byte	%####.#.#,%.#######
+	!byte	%####.#.#,%.#######
+	!byte	%##.....#,%....####
+	!byte	%##.#..##,%.##.####
+	!byte	%##.##...,%.##.####
+	!byte	%##.#####,%.##.####
+	!byte	%...#....,%....####
+	!byte	%.#.#.##.,%########
+	!byte	%.#......,%########
+	!byte	%.###.###,%########
+	!byte	%.....###,%########
+
+	; Level 14
+	!byte	31,13,13
+	!byte	0,12
+	!byte	%..######,%....####
+	!byte	%....####,%.##..###
+	!byte	%....####,%.###.###
+	!byte	%#.#.#...,%.###.###
+	!byte	%#.#.#...,%.....###
+	!byte	%#.#...##,%#.##.###
+	!byte	%#.###.##,%#.##.###
+	!byte	%..#...#.,%..##.###
+	!byte	%..#.###.,%####.###
+	!byte	%....###.,%...#.###
+	!byte	%..######,%##.#.###
+	!byte	%........,%.#.#.###
+	!byte	%........,%.#...###
+
+	; Level 15
+	!byte	29,13,12
+	!byte	0,10
+	!byte	%#####..#,%#....###
+	!byte	%........,%#....###
+	!byte	%.####.#.,%####.###
+	!byte	%....#.#.,%##...###
+	!byte	%###.#.#.,%.....###
+	!byte	%....#.##,%##.#####
+	!byte	%.####.##,%##.#####
+	!byte	%..##..##,%##.#####
+	!byte	%#.##....,%.#...###
+	!byte	%...#.###,%.#.#.###
+	!byte	%...#.#..,%...#.###
+	!byte	%##...#..,%.#...###
+
+	; Level 16
+	!byte	33,14,14
+	!byte	0,12
+	!byte	%#...#...,%##..####
+	!byte	%....#...,%......##
+	!byte	%..#.#.#.,%##..#.##
+	!byte	%..#.#.#.,%##..#.##
+	!byte	%........,%......##
+	!byte	%....###.,%##..#.##
+	!byte	%#....##.,%##..#.##
+	!byte	%#..#....,%....#.##
+	!byte	%...#....,%......##
+	!byte	%.....#..,%###...##
+	!byte	%...###..,%......##
+	!byte	%.......#,%##.#..##
+	!byte	%.#......,%.....###
+	!byte	%#####..#,%##...###
+
+	; Level 17
+	!byte	44,18,13
+	!byte	0,8
+	!byte	%........,%######..,%..######
+	!byte	%.######.,%##......,%#.######
+	!byte	%......#.,%#..#.##.,%#.######
+	!byte	%.#.#..#.,%#..#.##.,%#.######
+	!byte	%.#.#..#.,%#..#....,%#.######
+	!byte	%...#.##.,%#..#####,%#.######
+	!byte	%####.##.,%#.....#.,%..######
+	!byte	%........,%#####.#.,%.#######
+	!byte	%........,%..###.#.,%.#######
+	!byte	%##.#.#..,%#.###.#.,%.#######
+	!byte	%##......,%...##.#.,%.#######
+	!byte	%####....,%...##.#.,%.#######
+	!byte	%######..,%........,%.#######
+
+	; Level 18
+	!byte	33,13,14
+	!byte	0,13
+	!byte	%########,%...#.###
+	!byte	%########,%.#.#.###
+	!byte	%######..,%.#.#.###
+	!byte	%####...#,%#....###
+	!byte	%####.#.#,%#.######
+	!byte	%#....#.#,%#.######
+	!byte	%#.......,%.....###
+	!byte	%#.#.....,%.#######
+	!byte	%#.#.#.##,%.#...###
+	!byte	%#.#...##,%...#.###
+	!byte	%...#....,%...#.###
+	!byte	%.#......,%...#.###
+	!byte	%.#.#.##.,%..#..###
+	!byte	%........,%#...####
+
 }
