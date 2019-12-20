@@ -39,28 +39,30 @@ RDTIM=$FFDE		; Read realtime clock
 SCRMOD=$FF5F
 
 ; ******** Commander X16 specific **************************
-;COLPORT=$02C9		; For ROM version > 34 ???
-COLPORT=$0286		; This address contains both background (high nibble)
+COLPORT=$0377
+;COLPORT=$0286		; This address contains both background (high nibble)
 			; and foreground (low nibble) color. Writing to it
 			; changes the colors. On C64 only foreground color
 			; can be changed in low nibble
 
-NUMCOLS=$02AE
-NUMLINES=$02AF
+;NUMCOLS=$02AE
+;NUMLINES=$02AF
+NUMCOLS=$0387
+NUMLINES=$0388
 			; This is remaining from older versions of the
 			; CX16 emulator where only a handfull of ZP
 			; addresses where available to the user.
 
-TMP0=$00		; The first 3 unused zero page locations are used
-TMP1=$01		; as temporary storage (registers)
-TMP2=$02
+TMP0=$30		; The first 3 unused zero page locations are used
+TMP1=$31		; as temporary storage (registers)
+TMP2=$32
 
-TMP3=$03		; The last 4 unused zero page locations are also
-TMP4=$04		; used as temporary storage (registers)
-TMP5=$05
-TMP6=$06
-TMP7=$07
-TMP8=$08
+TMP3=$33		; The last 4 unused zero page locations are also
+TMP4=$34		; used as temporary storage (registers)
+TMP5=$35
+TMP6=$36
+TMP7=$37
+TMP8=$38
 
 ; ******* Constants used in the source **********************
 Cursor=119
@@ -547,7 +549,7 @@ InitSCR:
 ; INPUTS:	.cx16, .xl1-.xl7, .ml1-.ml5, .starttxt
 ; **************************************************************
 SplashScreen:
-	lda	NUMCOLS	; $02AE contains the number of columns being shown
+	lda	NUMCOLS
 	cmp	#80	; if this is 80, we will switch to 40x30
 	beq	.SetIt	; Set 40 column mode
 	jmp	.NoSet
