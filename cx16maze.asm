@@ -21,6 +21,8 @@
 
 ; Above information has changed in R34. Now the columns are at $02AE
 ; and the lines are at $02AF
+; Again in R35, things have changed. Now the addresses are $0387 and
+; $0388
 
 ; ******** Kernal APIs - C64 API can be found here: *******
 ; http://sta.c64.org/cbm64krnfunc.html
@@ -39,7 +41,7 @@ RDTIM=$FFDE		; Read realtime clock
 SCRMOD=$FF5F
 
 ; ******** Commander X16 specific **************************
-COLPORT=$0377
+;COLPORT=$0377
 ;COLPORT=$0286		; This address contains both background (high nibble)
 			; and foreground (low nibble) color. Writing to it
 			; changes the colors. On C64 only foreground color
@@ -47,8 +49,8 @@ COLPORT=$0377
 
 ;NUMCOLS=$02AE
 ;NUMLINES=$02AF
-NUMCOLS=$0387
-NUMLINES=$0388
+;NUMCOLS=$0387
+;NUMLINES=$0388
 			; This is remaining from older versions of the
 			; CX16 emulator where only a handfull of ZP
 			; addresses where available to the user.
@@ -63,6 +65,13 @@ TMP5=$35
 TMP6=$36
 TMP7=$37
 TMP8=$38
+
+COLPORT=$39
+NUMCOLS=$3B
+NUMLINES=$3D
+
+KERNALVER=$FF80
+VIA1=$9F60
 
 ; ******* Constants used in the source **********************
 Cursor=119
@@ -116,12 +125,48 @@ NUMLEVELS=20
 .starttxt	!pet	"press return/enter",0
 
 Main:
+	jsr	CheckROM
 	jsr	SplashScreen
 	jsr	InitSCR
 	jsr	DrawMaze
 	jsr	GameLoop
 
 	rts			; Return to BASIC
+
+; **************************************************************
+; Initialices ZP variables according to the version of the ROM
+; **************************************************************
+CheckROM:!byte $ff
+	ldy	VIA1		; Save current ROM bank
+	lda	#0		; Set ROM bank to 0
+	sta	VIA1
+	lda	KERNALVER	; Read kernal version
+	sty	VIA1		; Restore ROM bank
+	cmp	#$DD		; $100-$DD = 35
+	bne	.do34		; If not R35, branch to 34
+	lda	#$77
+	sta	COLPORT		; COLPORT=$0377
+	lda	#$87
+	sta	NUMCOLS		; NUMCOLS=$0387
+	lda	#$88
+	sta	NUMLINES	; NUMLINES=$0388
+	lda	#$03
+	sta	COLPORT+1
+	sta	NUMCOLS+1
+	sta	NUMLINES+1
+	rts
+.do34:
+	lda	#$86
+	sta	COLPORT		; COLPORT=$0286
+	lda	#$AE
+	sta	NUMCOLS		; NUMCOLS=$02AE
+	lda	#$AF
+	sta	NUMLINES	; NUMLINES=$02AF
+	lda	#$02
+	sta	COLPORT+1
+	sta	NUMCOLS+1
+	sta	NUMLINES+1
+	rts
 
 ; **************************************************************
 ; Moves the cursor in the direction chosen by the user if it
@@ -266,7 +311,8 @@ GameLoop:
 
 .doR:	jsr	FillGA		; Reset the level
 	lda	#$12
-	sta	COLPORT
+	ldy	#0
+	sta	(COLPORT),y
 	ldx	#1	; Set up for level text (top right corner)
 	ldy	#35
 	jsr	GotoXY
@@ -299,7 +345,8 @@ DrawMaze:
 	jsr	GetMazeVals
 
 	lda	#$00
-	sta	COLPORT
+	tay
+	sta	(COLPORT),y
 	; Each time an empty space is drawn in the maze, the .fields
 	; variable is incremented. That makes it a simple matter of
 	; decrementing the .fields variable each time the cursor
@@ -394,7 +441,8 @@ PlaceInitCursor:
 	jsr	GotoXY
 
 	lda	.trailcol	; Set the color to draw with
-	sta	COLPORT
+	ldy	#0
+	sta	(COLPORT),y
 
 	lda	#Cursor		; Draw the cursor
 	jsr	CHROUT
@@ -466,13 +514,15 @@ FindMaze:
 ; *******************************************************************
 InitSCR:
 	lda	#$01	; Black background, white text
-	sta	COLPORT	; Set Color
+	ldy	#0
+	sta	(COLPORT),y	; Set Color
 
 	lda	#147	; ClrHome
 	jsr	CHROUT	; Clear Screen
 
 	lda	#$10	; White background, black text
-	sta	COLPORT	; Set color
+	ldy	#0
+	sta	(COLPORT),y	; Set color
 
 	ldx	#1	; Setup to create top horizontal line
 	ldy	#1
@@ -507,7 +557,8 @@ InitSCR:
 	jsr	VLine	; Draw right most vertical line
 
 	lda	#$12	; Set color, white background, red text
-	sta	COLPORT
+	ldy	#0
+	sta	(COLPORT),y
 
 	ldx	#1	; Set up for title text
 	ldy	#15
@@ -549,7 +600,8 @@ InitSCR:
 ; INPUTS:	.cx16, .xl1-.xl7, .ml1-.ml5, .starttxt
 ; **************************************************************
 SplashScreen:
-	lda	NUMCOLS
+	ldy	#0
+	lda	(NUMCOLS),y
 	cmp	#80	; if this is 80, we will switch to 40x30
 	beq	.SetIt	; Set 40 column mode
 	jmp	.NoSet
@@ -560,7 +612,8 @@ SplashScreen:
 .NoSet:
 	; Clear screen with black background
 	lda	#$00
-	sta	COLPORT
+	tay
+	sta	(COLPORT),y
 	lda	#147
 	jsr	CHROUT
 
@@ -569,14 +622,16 @@ SplashScreen:
 	ldy	#10
 	jsr	GotoXY
 	lda	#$05
-	sta	COLPORT
+	lda	#0
+	sta	(COLPORT),y
 	ldx	#<.cx16
 	ldy	#>.cx16
 	jsr	PrintStr
 
 	; Top line of "graphical" X
 	lda	#$04
-	sta	COLPORT
+	ldy	#0
+	sta	(COLPORT),y
 	ldx	#2
 	ldy	#17
 	jsr	GotoXY
@@ -586,7 +641,8 @@ SplashScreen:
 
 	; Next line of "graphical" X
 	lda	#$0E
-	sta	COLPORT
+	ldy	#0
+	sta	(COLPORT),y
 	ldx	#3
 	ldy	#18
 	jsr	GotoXY
@@ -596,7 +652,8 @@ SplashScreen:
 
 	; Next line of "graphical" X
 	lda	#$03
-	sta	COLPORT
+	ldy	#0
+	sta	(COLPORT),y
 	ldx	#4
 	ldy	#19
 	jsr	GotoXY
@@ -606,7 +663,8 @@ SplashScreen:
 
 	; First line of bottom of "graphical" X
 	lda	#$07
-	sta	COLPORT
+	ldy	#0
+	sta	(COLPORT),y
 	ldx	#6
 	ldy	#19
 	jsr	GotoXY
@@ -616,7 +674,8 @@ SplashScreen:
 
 	; Next line of "graphical" X
 	lda	#$08
-	sta	COLPORT
+	ldy	#0
+	sta	(COLPORT),y
 	ldx	#7
 	ldy	#18
 	jsr	GotoXY
@@ -626,7 +685,8 @@ SplashScreen:
 
 	; Last line of "graphical" X
 	lda	#$02
-	sta	COLPORT
+	ldy	#0
+	sta	(COLPORT),y
 	ldx	#8
 	ldy	#17
 	jsr	GotoXY
@@ -636,7 +696,8 @@ SplashScreen:
 
 	; Print MAZE with large letters (height=5 lines)
 	lda	#$05
-	sta	COLPORT
+	ldy	#0
+	sta	(COLPORT),y
 	ldx	#20
 	ldy	#7
 	jsr	GotoXY
@@ -674,7 +735,8 @@ SplashScreen:
 
 	; Start text
 	lda	#$01
-	sta	COLPORT
+	ldy	#0
+	sta	(COLPORT),y
 	ldx	#14
 	ldy	#11
 	jsr	GotoXY
@@ -764,7 +826,8 @@ LevelComplete:
 	sta	TMP5		; jiffies when calling DoDelay func
 
 	lda	#$01		; Black bg, whit text
-	sta	COLPORT
+	ldy	#0
+	sta	(COLPORT),y
 
 	; Create a black box in the middle of the screen and write
 	; level completed in the box.
@@ -891,10 +954,10 @@ LVLtoPET:
 ;		It is the background color that is used
 ; *******************************************************************
 DrawOutBorder:
-	sta	COLPORT
+	ldy	#0
+	sta	(COLPORT),y
 	; Top horizontal line
 	ldx	#0
-	ldy	#0
 	jsr	GotoXY
 	ldx	#39
 	lda	#' '
@@ -921,7 +984,8 @@ DrawOutBorder:
 	; screen does not scroll when the cursor goes beyound the
 	; last character on the bottom line
 	lda	#31
-	sta	NUMLINES
+	ldy	#0
+	sta	(NUMLINES),y
 
 	; Bottom horizontal line
 	ldx	#29
@@ -933,7 +997,8 @@ DrawOutBorder:
 
 	; Reset the number of lines back to standard
 	lda	#30
-	sta	NUMLINES
+	ldy	#0
+	sta	(NUMLINES),y
 
 	rts
 
@@ -964,7 +1029,8 @@ PrintStr:
 ; *******************************************************************
 FillGA:
 	lda	#WallCol	; Set background and foreground color
-	sta	COLPORT
+	ldy	#0
+	sta	(COLPORT),y
 
 	ldx	#1		; X register holds the Y coordinate
 
