@@ -76,7 +76,7 @@ VIA1=$9F60
 ; ******* Constants used in the source **********************
 Cursor=119
 Wall=191
-WallCol=$BB
+WallCol=$FF
 Trail=224
 
 BitCnt=9
@@ -759,8 +759,13 @@ SetTrailCol:
 	jsr	Random		; Get random number into reg A
 	lda	#$F0		; Only the high nibble is
 	and	.rndnum		; randomized as low nibble is 0
-	beq	SetTrailCol	; If result is 0, try again
-	cmp	#$B0		; if result is $B0, try again
+
+	beq	SetTrailCol	; Avoid black, wallcolor and some
+	cmp	#$F0		; dark colors
+	beq	SetTrailCol
+	cmp	#$B0
+	beq	SetTrailCol
+	cmp	#$60
 	beq	SetTrailCol
 	sta	.trailcol	; Store the new color
 	rts
