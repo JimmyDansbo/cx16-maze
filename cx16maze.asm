@@ -170,11 +170,11 @@ CheckROM:
 	rts
 .do36:
 	lda	#$76
-	sta	COLPORT		; COLPORT=$0377
+	sta	COLPORT		; COLPORT=$0376
 	lda	#$86
-	sta	NUMCOLS		; NUMCOLS=$0387
+	sta	NUMCOLS		; NUMCOLS=$0386
 	lda	#$87
-	sta	NUMLINES	; NUMLINES=$0388
+	sta	NUMLINES	; NUMLINES=$0387
 	lda	#$03
 	sta	COLPORT+1
 	sta	NUMCOLS+1
