@@ -142,20 +142,8 @@ CheckROM:
 	sta	VIA1
 	lda	KERNALVER	; Read kernal version
 	sty	VIA1		; Restore ROM bank
-	cmp	#$DD		; $100-$DD = 35
-	bne	.do34		; If not R35, branch to 34
-	lda	#$77
-	sta	COLPORT		; COLPORT=$0377
-	lda	#$87
-	sta	NUMCOLS		; NUMCOLS=$0387
-	lda	#$88
-	sta	NUMLINES	; NUMLINES=$0388
-	lda	#$03
-	sta	COLPORT+1
-	sta	NUMCOLS+1
-	sta	NUMLINES+1
-	rts
-.do34:
+	cmp	#$DE		; $100-$DE = 34
+	bne	.do35		; If not R34, branch to 35
 	lda	#$86
 	sta	COLPORT		; COLPORT=$0286
 	lda	#$AE
@@ -167,6 +155,32 @@ CheckROM:
 	sta	NUMCOLS+1
 	sta	NUMLINES+1
 	rts
+.do35:	cmp	#$DD		; $100-$DD = 35
+	bne	.do36
+	lda	#$77
+	sta	COLPORT		; COLPORT=$0377
+	lda	#$87
+	sta	NUMCOLS		; NUMCOLS=$0387
+	lda	#$88
+	sta	NUMLINES	; NUMLINES=$0388
+	lda	#$03
+	sta	COLPORT+1
+	sta	NUMCOLS+1
+	sta	NUMLINES+1
+	rts
+.do36:
+	lda	#$76
+	sta	COLPORT		; COLPORT=$0377
+	lda	#$86
+	sta	NUMCOLS		; NUMCOLS=$0387
+	lda	#$87
+	sta	NUMLINES	; NUMLINES=$0388
+	lda	#$03
+	sta	COLPORT+1
+	sta	NUMCOLS+1
+	sta	NUMLINES+1
+	rts
+
 
 ; **************************************************************
 ; Moves the cursor in the direction chosen by the user if it
@@ -332,7 +346,7 @@ GameLoop:
 ; *******************************************************************
 ; INPUTS:	.lvl and .mazes is used to find the maze to draw
 ; *******************************************************************
-DrawMaze:!byte $ff
+DrawMaze:
 	.mazeaddr=TMP0		; Base address of current maze is held
 				; in TMP0 and TMP1
 	.linecnt=TMP2		; Counts lines of the maze (Y)
