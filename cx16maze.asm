@@ -901,71 +901,20 @@ LevelComplete:
 ; INPUTS:	Works with the .lvltxt and .lvl global variables
 ; *******************************************************************
 LVLtoPET:
-	; Local names to zero-page constants to make code a bit
-	; more readable.
-	.value=TMP0
-	.digit=TMP1
-	.num=TMP2
-
-	; Ensure that the .lvltxt variable contains "000"
-	ldy	#'0'
-	sty	.lvltxt
-	sty	.lvltxt+1
-	sty	.lvltxt+2
-
-	lda	.lvl		; Load Reg A with current level
-
-	; Check if .lvl is >= 200
-	cmp	#200
-	bcc	.is100		; branch to .is100 if .lvl <200
-	ldy	#'2'		; Write '2' to first digit of .lvltxt
-	sty	.lvltxt
-	sbc	#200		; Subtract 200 from .lvl
-	beq	.allDone	; If result = 0, we are done
-	jmp	.Tens
-	; Check if .lvl is >= 100
-.is100:
-	cmp	#100
-	bcc	.Tens		; branch to .Tens if .lvl < 100
-	ldy	#'1'		; Write '1' to first digit of .lvltxt
-	sty	.lvltxt
-	sbc	#100		; Subtract 100 from .lvl
-	beq	.allDone	; If result = 0, we are done
-	; Check if .lvl contains any tens (10-90)
-.Tens:
-	ldy	#9
-	sty	.digit		; Store digit in zero-page memory
-	ldy	#90
-	sty	.num		; Store digit*10 in zero-page memory
-.DoTens
-	cmp	.num
-	bcc	.Any10		; branch to .Any10 if .lvl < .num
-
-	sta	.value		; Save current value as we need the accumulator
-	lda	.digit
-	ora	#$30		; OR $30 with digit to get petscii char
-	sta	.lvltxt+1	;Write digit to 2nd space of .lvltxt
-
-	lda	.value		; Restore value into A register
-	sec			; Set carry flag to ensure correct subtraction
-	sbc	.num		; Subtract .num from current .value
-	jmp	.Ones
-
-.Any10	cmp	#10
-	bcc	.Ones		; branch to .Ones if A < 10
-	; subtract 10 from .value
-	sta	.value		; Save current value
-	lda	.num		; Subtract 10 from .number
+	lda .lvl
+	ldy #$2f
+	ldx #$3a
 	sec
-	sbc	#10
-	sta	.num
-	lda	.value		; Restore A from TMP1
-	dec	.digit
-	jmp	.DoTens
-.Ones:
-	ora	#$30		; OR $30 with digit to get petscii char
-	sta	.lvltxt+2	;Write digit to 3rd space of .lvltxt
-.allDone:
+.l1	iny
+	sbc #100
+	bcs .l1
+.l2	dex
+	adc #10
+	bmi .l2
+	adc #$2f
+	sty .lvltxt
+	stx .lvltxt+1
+	sta .lvltxt+2
 	rts
 
 ; *******************************************************************
