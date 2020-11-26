@@ -891,6 +891,8 @@ LevelComplete:
 	jsr	GETIN		; Check if key has been pressed
 	cmp	#' '		; Is it space-key
 	bne	.changeborder	; If not, change border
+	lda	#$01            ; Make the border black again
+	jsr	DrawOutBorder
 	rts
 
 ; *******************************************************************
