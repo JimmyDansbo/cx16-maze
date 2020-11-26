@@ -636,7 +636,7 @@ SplashScreen:
 	ldy	#10
 	jsr	GotoXY
 	lda	#$05
-	lda	#0
+	ldy	#0
 	sta	(COLPORT),y
 	ldx	#<.cx16
 	ldy	#>.cx16
