@@ -633,7 +633,7 @@ SplashScreen:
 
 	; COMMANDER 16
 	ldx	#5
-	ldy	#10
+	ldy	#11
 	jsr	GotoXY
 	lda	#$05
 	ldy	#0
@@ -647,7 +647,7 @@ SplashScreen:
 	ldy	#0
 	sta	(COLPORT),y
 	ldx	#2
-	ldy	#17
+	ldy	#18
 	jsr	GotoXY
 	ldx	#<.xl1
 	ldy	#>.xl1
@@ -658,7 +658,7 @@ SplashScreen:
 	ldy	#0
 	sta	(COLPORT),y
 	ldx	#3
-	ldy	#18
+	ldy	#19
 	jsr	GotoXY
 	ldx	#<.xl2
 	ldy	#>.xl2
@@ -669,7 +669,7 @@ SplashScreen:
 	ldy	#0
 	sta	(COLPORT),y
 	ldx	#4
-	ldy	#19
+	ldy	#20
 	jsr	GotoXY
 	ldx	#<.xl3
 	ldy	#>.xl3
@@ -680,7 +680,7 @@ SplashScreen:
 	ldy	#0
 	sta	(COLPORT),y
 	ldx	#6
-	ldy	#19
+	ldy	#20
 	jsr	GotoXY
 	ldx	#<.xl5
 	ldy	#>.xl5
@@ -691,7 +691,7 @@ SplashScreen:
 	ldy	#0
 	sta	(COLPORT),y
 	ldx	#7
-	ldy	#18
+	ldy	#19
 	jsr	GotoXY
 	ldx	#<.xl6
 	ldy	#>.xl6
@@ -702,7 +702,7 @@ SplashScreen:
 	ldy	#0
 	sta	(COLPORT),y
 	ldx	#8
-	ldy	#17
+	ldy	#18
 	jsr	GotoXY
 	ldx	#<.xl7
 	ldy	#>.xl7
