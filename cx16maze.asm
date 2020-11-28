@@ -93,6 +93,9 @@ NUMLEVELS=56
 	jmp	Main
 
 .lvl		!byte	1
+.moves		!byte	0  ; TODO(heder): Make this a !word.
+.movesstr	!pet	"moves:",0
+.movestxt   !pet	"000",0
 .mazesx		!byte	00
 .mazesy		!byte	00
 .fields		!byte	0
@@ -268,7 +271,28 @@ MoveCursor:
 	jmp	MoveCursor
 .moveEnd:
 	jsr	CLALL		; Reset back to default input
-	rts
+
+	; TODO(heder): Only incrment if we actually did something.
+	inc .moves      ; Increment moves
+	jsr MOVEStoPET
+
+	lda	#$12
+	ldy	#0
+	sta	(COLPORT),y
+
+	ldx	#1
+	ldy	#7
+	jsr	GotoXY
+
+	ldx	#<.movestxt
+	ldy	#>.movestxt
+	jsr	PrintStr
+
+	lda	.trailcol	; Set the color to draw with
+	ldy	#0
+	sta	(COLPORT),y
+	lda #0
+	rts 
 
 ; **************************************************************
 ; The main loop that takes care of reading keyboard input and
@@ -324,9 +348,18 @@ GameLoop:
 	jmp	GameLoop	; If R is not pressed, loop to top
 
 .doR:	jsr	FillGA		; Reset the level
+	lda #0
+	sta .moves 
 	lda	#$12
 	ldy	#0
 	sta	(COLPORT),y
+	ldx #1
+	ldy #7
+	jsr GotoXY
+	jsr MOVEStoPET
+	ldx	#<.movestxt
+	ldy	#>.movestxt
+	jsr	PrintStr
 	ldx	#1	; Set up for level text (top right corner)
 	ldy	#35
 	jsr	GotoXY
@@ -573,6 +606,20 @@ InitSCR:
 	lda	#$12	; Set color, white background, red text
 	ldy	#0
 	sta	(COLPORT),y
+
+	ldx #1	; Set up moves txt
+	ldy #1
+	jsr GotoXY
+
+	ldx #<.movesstr
+	ldy #>.movesstr
+	jsr PrintStr
+
+	jsr MOVEStoPET
+
+	ldx #<.movestxt
+	ldy #>.movestxt
+	jsr PrintStr
 
 	ldx	#1	; Set up for title text
 	ldy	#15
@@ -875,6 +922,9 @@ LevelComplete:
 	ldy	#>.completetxt
 	jsr	PrintStr
 
+	lda	#0
+	sta	.moves		; Reset moves to zero
+
 	inc	.lvl		; Increment level and check if it
 	lda	#NUMLEVELS+1	; has been incremented past the
 	cmp	.lvl		; total number of levels
@@ -915,6 +965,23 @@ LVLtoPET:
 	sty .lvltxt
 	stx .lvltxt+1
 	sta .lvltxt+2
+	rts
+
+MOVEStoPET:
+	lda .moves
+	ldy #$2f
+	ldx #$3a
+	sec
+.l3	iny
+	sbc #100
+	bcs .l3
+.l4	dex
+	adc #10
+	bmi .l4
+	adc #$2f
+	sty .movestxt
+	stx .movestxt+1
+	sta .movestxt+2
 	rts
 
 ; *******************************************************************
