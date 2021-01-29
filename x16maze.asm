@@ -77,61 +77,61 @@ show_welcome:
 
 	+VERA_SET_STRIDE 1	; Include color cells when printing
 	+VERA_GOXY 15, 2	; 1st line of X
-	ldx	#BLACK|PURPLE	; Black background and purple foreground
+	ldx	#(BLACK<<4)|PURPLE	; Black background and purple foreground
 	lda	#<Xl0
 	sta	TMP0
 	lda	#>Xl0
 	sta	TMP0+1
 	jsr	print_col_str
 	+VERA_GOXY 15, 3	; 2nd line of X
-	ldx	#BLACK|LIGHTBLUE
+	ldx	#(BLACK<<4)|LIGHTBLUE
 	lda	#<Xl1
 	sta	TMP0
 	lda	#>Xl1
 	sta	TMP0+1
 	jsr	print_col_str
 	+VERA_GOXY 15, 4	; 3rd line of X
-	ldx	#BLACK|CYAN
+	ldx	#(BLACK<<4)|CYAN
 	lda	#<Xl2
 	sta	TMP0
 	lda	#>Xl2
 	sta	TMP0+1
 	jsr	print_col_str
 	+VERA_GOXY 15, 6	; 4th line of X
-	ldx	#BLACK|YELLOW
+	ldx	#(BLACK<<4)|YELLOW
 	lda	#<Xl3
 	sta	TMP0
 	lda	#>Xl3
 	sta	TMP0+1
 	jsr	print_col_str
 	+VERA_GOXY 15, 7	; 5th line of X
-	ldx	#BLACK|ORANGE
+	ldx	#(BLACK<<4)|ORANGE
 	lda	#<Xl4
 	sta	TMP0
 	lda	#>Xl4
 	sta	TMP0+1
 	jsr	print_col_str
 	+VERA_GOXY 15, 8	; 6th line of X
-	ldx	#BLACK|RED
+	ldx	#(BLACK<<4)|RED
 	lda	#<Xl5
 	sta	TMP0
 	lda	#>Xl5
 	sta	TMP0+1
 	jsr	print_col_str
 	+VERA_GOXY 11, 14	; Press Enter/Return
-	ldx	#BLACK|WHITE
+	ldx	#(BLACK<<4)|WHITE
 	lda	#<Start
 	sta	TMP0
 	lda	#>Start
 	sta	TMP0+1
 	jsr	print_col_str
 	+VERA_GOXY 12, 28	; By Jimmy Dansbo
-	ldx	#BLACK|WHITE
+	ldx	#(BLACK<<4)|WHITE
 	lda	#<Jimmy
 	sta	TMP0
 	lda	#>Jimmy
 	sta	TMP0+1
-	bra	print_col_str	; Return from print_col_str will return to 
+	bra	print_col_str	; Return from print_col_str will return to
 				; caller of this routine
 
 ; *****************************************************************************
@@ -196,7 +196,9 @@ init_screen:
 	jsr	CHROUT
 	rts
 
+; Use the ASCII to VERA conversion table
 !ct "asc2vera.ct" {
+	; Large colored X
 Xl0	!byte	$5F,$A0,$A0,$DF,$20,$20,$20,$E9,$A0,$A0,$69,0
 Xl1	!byte	$20,$5F,$A0,$A0,$DF,$20,$E9,$A0,$A0,$69,$20,0
 Xl2	!byte	$20,$20,$5F,$A0,$A0,$20,$A0,$A0,$69,$20,$20,0
@@ -205,10 +207,15 @@ Xl4	!byte	$20,$E9,$A0,$A0,$69,$20,$5F,$A0,$A0,$DF,$20,0
 Xl5	!byte	$E9,$A0,$A0,$69,$20,$20,$20,$5F,$A0,$A0,$DF,0
 V2	!text	"V2",0
 Cx16	!text	"COMMANDER  "
-	!byte	$A0,$20,$A0
+	!byte	$A0,$20,$A0	; These are the middle if thar large X
 	!text	"  16",0
 Jimmy	!text	"BY JIMMY DANSBO",0
 Start	!text	"PRESS ENTER/RETURN",0
+Caption	!text	"CX16 MAZE",0
+Level	!text	"LEVEL:",0
+Help0	!text	"CURSOR KEYS TO MOVE, Q TO QUIT",0
+Help1	!text	"SPACE TO GO NO TEXT LEVEL, R TO RESTART"
+	; MAZE written i large letters
 Maze	!text	$66,$20,$20,$20,$66,$20,$20,$20,$20,$66,$20,$20,$20,$20,$66,$66,$66,$66,$66,$20,$20,$66,$66,$66,$66,$66,0
 	!text	$66,$66,$20,$66,$66,$20,$20,$20,$66,$20,$66,$20,$20,$20,$20,$20,$20,$66,$20,$20,$20,$66,$20,$20,$20,$20,0
 	!text	$66,$20,$66,$20,$66,$20,$20,$66,$66,$66,$66,$66,$20,$20,$20,$20,$66,$20,$20,$20,$20,$66,$66,$66,$20,$20,0
