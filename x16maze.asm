@@ -14,6 +14,10 @@
 ; BASIC SYS command to start program at $810
 +SYS_LINE
 
+	jmp	main
+
+!src "globals.inc"
+
 ; *****************************************************************************
 ; This is the main entry point of the program. From here all the
 ; initialization and gameloop will be called.
@@ -24,8 +28,67 @@ main:
 	jsr	CHRIN
 	jsr	init_play_screen
 	jsr	CHRIN
+	!byte	$db
+	jsr	load_mazes
+	bcs	@end
+	jsr	Clock_get_date_time
+
+@end
 	rts
 
+; *****************************************************************************
+; Load mazes from MAZES.BIN into memory bank 1 starting at address $A000
+; If the function returns with Carry Set, it was unable to load the mazes.
+; *****************************************************************************
+; USES:		.A, .X, .Y
+; *****************************************************************************
+load_mazes:
+	lda	#1			; Logical filenumber (must be unique)
+	ldx	#8			; Device number (8 local filesystem)
+	ldy	#255			; Secondary command 255=none
+	jsr	SETLFS
+	lda	#(Mazes_end-Mazes)	; Length of filename
+	ldx	#<Mazes			; Address of filename
+	ldy	#>Mazes
+	jsr	SETNAM
+	lda	#1			; Ensure RAM bank is set to 1
+	sta	RAM_BANK
+	lda	#0			; 0=load, 1=verify
+	ldx	#<RAM_BANK_START	; Address to load data to
+	ldy	#>RAM_BANK_START
+	jsr	LOAD
+	bcc	@no_error		; Carry Clear = No error
+	clc
+	ldy	#0			; Move cursor to 0, 15
+	ldx	#15
+	jsr	PLOT
+	lda	#PET_RED		; Write with white text
+	jsr	CHROUT			; on red background
+	lda	#PET_SWAP_FGBG
+	jsr	CHROUT
+	lda	#PET_WHITE
+	jsr	CHROUT
+@err_loop:
+	lda	Err_Ld,Y		; Write the error message
+	beq	@next
+	jsr	CHROUT
+	iny
+	bra	@err_loop
+@next:
+	ldy	#0
+	sec
+@name_loop:
+	lda	Mazes,Y			; Write the filename that failed.
+	beq	@no_error
+	jsr	CHROUT
+	iny
+	bra	@name_loop
+@no_error:
+	rts
+
+; *****************************************************************************
+; Initializes the screen to start the game.
+; *****************************************************************************
 init_play_screen:
 	lda	#PET_LIGHTGRAY	; Set background color
 	jsr	CHROUT
@@ -297,31 +360,3 @@ init_screen:
 	lda	#PET_CLEAR
 	jsr	CHROUT
 	rts
-
-; Use the ASCII to VERA conversion table
-!ct "asc2vera.ct" {
-	; Large colored X
-Xl0	!byte	$5F,$A0,$A0,$DF,$20,$20,$20,$E9,$A0,$A0,$69,0
-Xl1	!byte	$20,$5F,$A0,$A0,$DF,$20,$E9,$A0,$A0,$69,$20,0
-Xl2	!byte	$20,$20,$5F,$A0,$A0,$20,$A0,$A0,$69,$20,$20,0
-Xl3	!byte	$20,$20,$E9,$A0,$A0,$20,$A0,$A0,$DF,$20,$20,0
-Xl4	!byte	$20,$E9,$A0,$A0,$69,$20,$5F,$A0,$A0,$DF,$20,0
-Xl5	!byte	$E9,$A0,$A0,$69,$20,$20,$20,$5F,$A0,$A0,$DF,0
-V2	!text	"V2",0
-Cx16	!text	"COMMANDER  "
-	!byte	$A0,$20,$A0	; These are the middle if the large colored X
-	!text	"  16",0
-Jimmy	!text	"BY JIMMY DANSBO",0
-Start	!text	"PRESS ENTER/RETURN",0
-Caption	!text	"X16 MAZE",0
-Level	!text	"LEVEL: 000",0
-Time	!text	"00:00.00",0
-Help0	!text	"CURSOR KEYS = MOVE, Q = QUIT",0
-Help1	!text	"SPACE = GO TO NEXT LEVEL, R = RESTART",0
-	; MAZE written i large letters
-Maze	!byte	$66,$20,$20,$20,$66,$20,$20,$20,$20,$66,$20,$20,$20,$20,$66,$66,$66,$66,$66,$20,$20,$66,$66,$66,$66,$66,0
-	!byte	$66,$66,$20,$66,$66,$20,$20,$20,$66,$20,$66,$20,$20,$20,$20,$20,$20,$66,$20,$20,$20,$66,$20,$20,$20,$20,0
-	!byte	$66,$20,$66,$20,$66,$20,$20,$66,$66,$66,$66,$66,$20,$20,$20,$20,$66,$20,$20,$20,$20,$66,$66,$66,$20,$20,0
-	!byte	$66,$20,$20,$20,$66,$20,$20,$66,$20,$20,$20,$66,$20,$20,$20,$66,$20,$20,$20,$20,$20,$66,$20,$20,$20,$20,0
-	!byte	$66,$20,$20,$20,$66,$20,$20,$66,$20,$20,$20,$66,$20,$20,$66,$66,$66,$66,$66,$20,$20,$66,$66,$66,$66,$66,0
-}
