@@ -64,7 +64,7 @@
 ; The first field is the actual size of the maze in bytes. We calculate it by
 ; counting the number of lines and multiplying with the number of sections.
 ; In above example, we have 10 lines each with 2 sections = 20 and then we
-; add the header information which is alway 5 so the final size of the maze
+; add the header information which is always 5 so the final size of the maze
 ; comes to 25 bytes.
 
 ; The next two fields are the width and height of the maze. Height is easy as
@@ -1052,5 +1052,15 @@
 !byte	%#..#.#..,%.....###
 !byte	%#..#..#.,%...#####
 
+; Level 57
+!byte	19,14,7			;size,width,height
+!byte	0,6			;start coordinates (zero based)
+!byte	%....####,%##....##
+!byte	%#....###,%#....###
+!byte	%##....##,%....####
+!byte	%####....,%..######
+!byte	%##....##,%....####
+!byte	%#....###,%#....###
+!byte	%....####,%##....##
 ; No more level
 !byte	0				;When size 0, there are no more mazes.
