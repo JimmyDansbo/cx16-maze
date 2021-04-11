@@ -86,7 +86,7 @@ DirLeft=2
 DirDown=3
 DirRight=4
 
-NUMLEVELS=56
+NUMLEVELS=57
 
 
 ; ******* Global variables **********************************
@@ -1110,9 +1110,6 @@ GotoXY:
 	rts
 
 
-
-
-
 	; Level 1
 .mazes	!byte	25,10,10	;size,width,Height
 	!byte	00,01		;start coordinates (zero based)
@@ -2065,5 +2062,17 @@ GotoXY:
 	!byte	%#..#.#..,%......##
 	!byte	%#..#.#..,%.....###
 	!byte	%#..#..#.,%...#####
+
+	; Level 57
+	!byte	21,15,8
+	!byte	0,0
+	!byte	%....####,%###....#
+	!byte	%#....###,%##....##
+	!byte	%##....##,%#....###
+	!byte	%###.....,%...#####
+	!byte	%####....,%....####
+	!byte	%##....##,%#....###
+	!byte	%#....###,%##....##
+	!byte	%....####,%###....#
 
 }
