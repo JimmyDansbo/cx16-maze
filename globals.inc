@@ -1,4 +1,16 @@
 
+Width		!byte 0
+Height		!byte 0
+Maze_x		!byte 0
+Maze_y		!byte 0
+Size		!byte 0
+Start_x		!byte 0
+Start_y		!byte 0
+
+Trail_color	!byte 0
+
+MAZE_PTR = TMP_PTR7
+
 ; Use the ASCII to VERA conversion table
 !ct "asc2vera.ct" {
 	; Large colored X
@@ -19,7 +31,7 @@ Level	!text	"LEVEL: 000",0
 Time	!text	"00:00.00",0
 Help0	!text	"CURSOR KEYS = MOVE, Q = QUIT",0
 Help1	!text	"SPACE = GO TO NEXT LEVEL, R = RESTART",0
-	; MAZE written i large letters
+	; MAZE written in large letters
 Maze	!byte	$66,$20,$20,$20,$66,$20,$20,$20,$20,$66,$20,$20,$20,$20,$66,$66,$66,$66,$66,$20,$20,$66,$66,$66,$66,$66,0
 	!byte	$66,$66,$20,$66,$66,$20,$20,$20,$66,$20,$66,$20,$20,$20,$20,$20,$20,$66,$20,$20,$20,$66,$20,$20,$20,$20,0
 	!byte	$66,$20,$66,$20,$66,$20,$20,$66,$66,$66,$66,$66,$20,$20,$20,$20,$66,$20,$20,$20,$20,$66,$66,$66,$20,$20,0

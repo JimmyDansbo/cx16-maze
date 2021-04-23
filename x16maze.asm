@@ -18,6 +18,16 @@
 
 !src "globals.inc"
 
+!macro ADD16 .ptr, .byteval {
+	lda	.ptr
+	clc
+	adc	#.byteval
+	sta	.ptr
+	lda	.ptr+1
+	adc	#0
+	sta	.ptr+1
+}
+
 ; *****************************************************************************
 ; This is the main entry point of the program. From here all the
 ; initialization and gameloop will be called.
@@ -25,15 +35,249 @@
 main:
 	jsr	init_screen
 	jsr	show_welcome
-	jsr	CHRIN
+-	jsr	GETIN
+	cmp	#13
+	bne	-
 	jsr	init_play_screen
-	jsr	CHRIN
-	!byte	$db
 	jsr	load_mazes
 	bcs	@end
-	jsr	Clock_get_date_time
 
-@end
+	lda	#<RAM_BANK_START
+	sta	MAZE_PTR
+	lda	#>RAM_BANK_START
+	sta	MAZE_PTR+1
+
+@empty_loop:
+	jsr	GETIN
+	bne	@empty_loop
+	jsr	load_level
+-	jsr	GETIN
+	beq	-
+	bra	@empty_loop
+@end:
+	rts
+
+; *****************************************************************************
+; Load a level from memory to screen, update the level counter and place the
+; player
+; *****************************************************************************
+; *****************************************************************************
+load_level:
+	lda	(MAZE_PTR)
+	bne	+		; If 0, start over from beginning of RAM bank
+	lda	#<RAM_BANK_START
+	sta	MAZE_PTR
+	lda	#>RAM_BANK_START
+	sta	MAZE_PTR+1
+	jsr	init_play_screen
+
++	jsr	inc_level
+	jsr	get_maze_vals
+	jsr	draw_maze
+	jsr	place_player
+	jsr	prep_next_maze
+	rts
+
+; *****************************************************************************
+; *****************************************************************************
+; *****************************************************************************
+prep_next_maze:
+	lda	Size
+	clc
+	adc	MAZE_PTR
+	sta	MAZE_PTR
+	lda	#0
+	adc	MAZE_PTR+1
+	sta	MAZE_PTR+1
+	rts
+
+; *****************************************************************************
+; *****************************************************************************
+; *****************************************************************************
+place_player:
+	lda	Maze_y
+	clc
+	adc	Start_y
+	sta	VERA_ADDR_M
+	lda	Maze_x
+	clc
+	adc	Start_x
+	asl
+	inc
+	sta	VERA_ADDR_L
+	jsr	set_trail_col
+	sta	VERA_DATA0
+	rts
+
+; *****************************************************************************
+; *****************************************************************************
+; *****************************************************************************
+draw_maze:
+@x_cnt = TMP0
+@y_cnt = TMP1
+	jsr	clear_field
+	lda	#$20		; Increment by 2 at each write to VERA
+	sta	VERA_ADDR_H
+	+VERA_GOXY ~Maze_x, ~Maze_y
+	inc	VERA_ADDR_L	; Ensure we change color settings
+	+ADD16 MAZE_PTR, 5	; Move pointer to start of actual maze
+
+	lda	Width		; Store width and height in temporary variables
+	sta	@x_cnt
+	lda	Height
+	sta	@y_cnt
+
+	ldy	#255
+@sizeloop:
+	iny
+	lda	(MAZE_PTR),Y
+
+	jsr	draw_maze_byte	; Draw contents of 1 byte to screen
+
+	sec			; Subtract 8 from the maze-width to figure
+	lda	@x_cnt		; out if we need to go to the next line
+	sbc	#8
+	sta	@x_cnt
+	beq	@nextline	; If 0, we need to go to next line
+	bpl	@sizeloop	; If number still positive, we do next byte
+	; Go to next line in maze
+@nextline:
+	lda	Width
+	sta	@x_cnt		; Reset x_cnt
+	inc	VERA_ADDR_M	; Go to next line in VERA
+	lda	Maze_x		; Reset X coordinate in VERA
+	asl
+	inc
+	sta	VERA_ADDR_L
+	dec	@y_cnt
+	bne	@sizeloop	; If y_cnt has reached 0, we are done
+	rts
+
+; *****************************************************************************
+; *****************************************************************************
+; *****************************************************************************
+draw_maze_byte:
+	ldx	#8
+@loop:	asl
+	bcc	@do_draw
+	; skip this character
+	inc	VERA_ADDR_L
+	inc	VERA_ADDR_L
+	bra	@continue
+@do_draw:
+	stz	VERA_DATA0
+@continue:
+	dex
+	bne	@loop
+	rts
+
+; *****************************************************************************
+; Find maze height, width and size and calculate coordinates for top left corner
+; of the maze.
+; *****************************************************************************
+; INPUTS:	Expects MAZE_PTR to point to beginning of maze data
+; OUTPUTS:	Size, Width, Height, Maze_x, Maze_y, Start_x & Start_y
+; *****************************************************************************
+get_maze_vals:
+	ldy	#0
+	lda	(MAZE_PTR),Y	; Load total maze size
+	sec
+	sbc	#5		; Subtract size of header
+	sta	Size
+	iny
+	lda	(MAZE_PTR),Y	; Load width of maze
+	sta	Width
+	sta	Maze_x		; also store in Maze_x for later calculations
+	iny
+	lda	(MAZE_PTR),Y	; Load height of maze
+	sta	Height
+	sta	Maze_y		; also store in Maze_y for later calculations
+
+	lsr	Maze_x		; Calculate maze starting X coordinate
+	lda	#40/2
+	sec
+	sbc	Maze_x
+	sta	Maze_x
+
+	lsr	Maze_y		; Calculate maze starting Y coordinate
+	lda	#30/2
+	sec
+	sbc	Maze_y
+	sta	Maze_y
+
+	iny
+	lda	(MAZE_PTR),Y	; Load players starting x position
+	sta	Start_x
+	iny
+	lda	(MAZE_PTR),Y	; Load players starting y position
+	sta	Start_y
+	rts
+
+; *****************************************************************************
+; Increment the level counter on screen (rolls over to 000 after 999)
+; *****************************************************************************
+; USES:		.A
+; *****************************************************************************
+inc_level:
+	stz	VERA_ADDR_H
+	+VERA_GOXY 39,0
+	lda	VERA_DATA0
+	inc
+	cmp	#$3A		; is value > $39 ?
+	bcc	@end
+	lda	#$30
+	sta	VERA_DATA0
+	dec	VERA_ADDR_L
+	dec	VERA_ADDR_L
+	lda	VERA_DATA0
+	inc
+	cmp	#$3A
+	bcc	@end
+	lda	#$30
+	sta	VERA_DATA0
+	dec	VERA_ADDR_L
+	dec	VERA_ADDR_L
+	lda	VERA_DATA0
+	inc
+	cmp	#$3A
+	bcc	@end
+	lda	#$30
+@end:	sta	VERA_DATA0
+	rts
+
+; *****************************************************************************
+; Sets a random color for the trail of the maze.
+; *****************************************************************************
+; USES:		.A, .X, .Y & TMP0
+; OUTPUT:	Trail_color global variable set to random number
+; *****************************************************************************
+set_trail_col:
+	jsr	Entropy_get	; Get 24bit "random" number
+	stx	TMP0		; Combine to 4 bits
+	eor	TMP0
+	sty	TMP0
+	eor	TMP0
+	sta	TMP0
+	lsr
+	lsr
+	lsr
+	lsr
+	eor	TMP0
+	and	#$0F
+
+	cmp	#BLACK		; Avoid Black
+	beq	set_trail_col
+	cmp	#LIGHTGRAY	; Avoid lightgray (background color)
+	beq	set_trail_col
+	cmp	#DARKGRAY	; Avoid darkgray
+	beq	set_trail_col
+	cmp	#BLUE		; Avoid blue
+	beq	set_trail_col
+	asl
+	asl
+	asl
+	asl
+	sta	Trail_color
 	rts
 
 ; *****************************************************************************
@@ -84,6 +328,32 @@ load_mazes:
 	iny
 	bra	@name_loop
 @no_error:
+	rts
+
+; *****************************************************************************
+; *****************************************************************************
+; *****************************************************************************
+clear_field:
+	lda	#$10
+	sta	VERA_ADDR_H
+	lda	#1
+	sta	VERA_ADDR_M
+	inc
+	sta	VERA_ADDR_L
+	ldx	#' '
+	ldy	#((LIGHTGRAY<<4)|LIGHTGRAY)
+@loop:
+	stx	VERA_DATA0
+	sty	VERA_DATA0
+	lda	VERA_ADDR_L
+	cmp	#(39*2)
+	bne	@loop
+	lda	#2
+	sta	VERA_ADDR_L
+	inc	VERA_ADDR_M
+	lda	VERA_ADDR_M
+	cmp	#28
+	bne	@loop
 	rts
 
 ; *****************************************************************************

@@ -22,7 +22,7 @@
 ; %###...
 ; %####..
 ; %####.
-; Now we need to start couting becase the number of dots and # must always be
+; Now we need to start counting becase the number of dots and # must always be
 ; divisable by 8 so 8, 16, 24, and so on.
 ; In our maze, the longest line is 10 dots so we need to add 6 #-characters
 ; The rest of the lines need to be as long.
@@ -1053,14 +1053,16 @@
 !byte	%#..#..#.,%...#####
 
 ; Level 57
-!byte	19,14,7			;size,width,height
-!byte	0,6			;start coordinates (zero based)
+!byte	21,14,8
+!byte	0,0
 !byte	%....####,%##....##
 !byte	%#....###,%#....###
 !byte	%##....##,%....####
-!byte	%####....,%..######
+!byte	%###.....,%..######
+!byte	%####....,%...#####
 !byte	%##....##,%....####
 !byte	%#....###,%#....###
 !byte	%....####,%##....##
+
 ; No more level
 !byte	0				;When size 0, there are no more mazes.
