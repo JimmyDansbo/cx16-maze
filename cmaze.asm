@@ -41,6 +41,7 @@ TMP3=$FE
 TMP4=$02
 TMP5=$2A
 TMP6=$52
+SCREEN_HEIGHT=25
 } else {
 TMP0=$30
 TMP1=$31
@@ -49,6 +50,7 @@ TMP3=$33
 TMP4=$34
 TMP5=$35
 TMP6=$36
+SCREEN_HEIGHT=30
 }
 ; ******* Constants used in the source **********************
 ; PETSCII color codes
@@ -68,26 +70,8 @@ PET_MIDGRAY	= $98
 PET_LIGHTGREEN	= $99
 PET_LIGHTBLUE	= $9A
 PET_LIGHTGRAY	= $9B
-; Color values
-BLACK		= 0
-WHITE		= 1
-RED		= 2
-CYAN		= 3
-PURPLE		= 4
-GREEN		= 5
-BLUE		= 6
-YELLOW		= 7
-ORANGE		= 8
-BROWN		= 9
-LIGHTRED	= 10
-DARKGRAY	= 11
-MIDGRAY		= 12
-LIGHTGREEEN	= 13
-LIGHTBLUE	= 14
-LIGHTGRAY	= 15
 
 Cursor=119
-;Wall=191
 Wall=$A6
 WallCol=PET_LIGHTGRAY
 Trail=$A0
@@ -461,11 +445,8 @@ GetMazeVals:
 	sbc	TMP2		; Subtract half of the maze width
 	sta	.mazesx		; Save the X coordinate of top left corner
 
-!ifdef C64 {
-	lda	#24/2
-} else {
-	lda	#30/2		; Load A with half of the screen height
-}
+	lda	#SCREEN_HEIGHT/2; Load A with half of the screen height
+
 	sec
 	sbc	TMP3		; Subtract half of the maze height
 	sta	.mazesy		; Save the Y coordinate of top left corner
@@ -522,11 +503,8 @@ InitSCR:
 	ldx	#38
 	jsr	HLine	; Draw horizontal line
 
-!ifdef C64 {
-	ldx	#23
-} else {
-	ldx	#28	; Setup to create bottom horizontal line
-}
+	; Setup to create bottom horizontal line
+	ldx	#SCREEN_HEIGHT-2
 	ldy	#1
 	jsr	GotoXY
 
@@ -538,11 +516,7 @@ InitSCR:
 	ldy	#1
 	jsr	GotoXY
 
-!ifdef C64 {
-	ldx	#21
-} else {
-	ldx	#26
-}
+	ldx	#SCREEN_HEIGHT-4
 	lda	#' '
 	jsr	VLine	; Draw left most vertical line
 
@@ -550,11 +524,7 @@ InitSCR:
 	ldy	#38
 	jsr	GotoXY
 
-!ifdef C64 {
-	ldx	#21
-} else {
-	ldx	#26
-}
+	ldx	#SCREEN_HEIGHT-4
 	lda	#' '
 	jsr	VLine	; Draw right most vertical line
 
@@ -581,11 +551,7 @@ InitSCR:
 	jsr	PrintStr
 
 	ldy	#2	; Set up for help text (bottom line)
-!ifdef C64 {
-	ldx	#23
-} else {
-	ldx	#28
-}
+	ldx	#SCREEN_HEIGHT-2
 	jsr	GotoXY
 
 	ldx	#<.helptxt
@@ -611,7 +577,7 @@ SplashScreen:
 }
 	; Clear screen with black background
 !ifdef C64 {
-	lda	#BLACK
+	lda	#$00
 	sta	$D020	; Border color
 	sta	$D021	; Background color
 } else {
@@ -987,11 +953,7 @@ DrawOutBorder:
 	ldx	#1
 	ldy	#0
 	jsr	GotoXY
-!ifdef C64 {
-	ldx	#23
-} else {
-	ldx	#28
-}
+	ldx	#SCREEN_HEIGHT-2
 	lda	#' '
 	jsr	VLine
 
@@ -999,20 +961,12 @@ DrawOutBorder:
 	ldx	#0
 	ldy	#39
 	jsr	GotoXY
-!ifdef C64 {
-	ldx	#24
-} else {
-	ldx	#29
-}
+	ldx	#SCREEN_HEIGHT-1
 	lda	#' '
 	jsr	VLine
 
 	; Bottom horizontal line
-!ifdef C64 {
-	ldx	#24
-} else {
-	ldx	#29
-}
+	ldx	#SCREEN_HEIGHT-1
 	ldy	#0
 	jsr	GotoXY
 	ldx	#39
@@ -1059,11 +1013,7 @@ FillGA:
 .StartOfFill:
 	inx			; Increment Y coordinate to go to next line
 	stx	TMP0		; Save the Y coordinate in ZP
-!ifdef C64 {
-	cpx	#23
-} else {
-	cpx	#28		; If we have reached Y-coordinate 28,
-}
+	cpx	#SCREEN_HEIGHT-2; If we have reached bottom Y-coordinate
 	beq	.EndOfFill	; We are done, so branch to end
 	ldy	#2		; Y register holds the X coordinate
 	jsr	GotoXY		; Place cursor at X, Y coordinates
