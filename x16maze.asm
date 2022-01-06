@@ -27,6 +27,15 @@
 	adc	#0
 	sta	.ptr+1
 }
+!macro ADD16 .ptr, ~.byteval {
+	lda	.ptr
+	clc
+	adc	.byteval
+	sta	.ptr
+	lda	.ptr+1
+	adc	#0
+	sta	.ptr+1
+}
 
 ; *****************************************************************************
 ; This is the main entry point of the program. From here all the
@@ -75,7 +84,8 @@ load_level:
 	jsr	get_maze_vals
 	jsr	draw_maze
 	jsr	place_player
-	jsr	prep_next_maze
+	+ADD16	MAZE_PTR, ~Size
+;	jsr	prep_next_maze
 	rts
 
 ; *****************************************************************************

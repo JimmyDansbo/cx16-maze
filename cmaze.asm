@@ -85,6 +85,20 @@ DirRight=4
 
 NUMLEVELS=57
 
+; ****************** MACROS *********************************
+
+; *******************************************************************
+; Ensures that Carry flag is cleared and calls PLOT to set cursor pos
+; *******************************************************************
+; INPUTS:	X = Column (Y coordinate)
+;		Y = Row    (X coordinate)
+; *******************************************************************
+!macro GotoXY {
+	clc			; Clear Carry Flag
+	jsr	PLOT		; Move cursor to coordinates in X & Y
+}
+
+
 
 ; ******* Global variables **********************************
 	jmp	Main
@@ -172,7 +186,7 @@ MoveCursor:
 	stx	.newY
 	sty	.newX
 
-	jsr	GotoXY		; Move to coordinate to test
+	+GotoXY			; Move to coordinate to test
 	jsr	SetScrIn	; Read character there
 	jsr	CHRIN		; Read char from current position
 	cmp	#Wall
@@ -189,7 +203,7 @@ MoveCursor:
 	; Draw the trail
 	ldx	.cursory
 	ldy	.cursorx
-	jsr	GotoXY
+	+GotoXY
 	lda	#Trail
 	jsr	CHROUT
 
@@ -198,7 +212,7 @@ MoveCursor:
 	ldy	.newX
 	stx	.cursory
 	sty	.cursorx
-	jsr	GotoXY
+	+GotoXY
 	lda	#Cursor
 	jsr	CHROUT
 
@@ -287,7 +301,7 @@ GameLoop:
 
 	ldx	#1	; Set up for level text (top right corner)
 	ldy	#35
-	jsr	GotoXY
+	+GotoXY
 	jsr	LVLtoPET ; Create level as a petscii string
 	ldx	#<.lvltxt
 	ldy	#>.lvltxt
@@ -346,7 +360,7 @@ DrawMaze:
 	adc	.mazesy		; + .mazesy
 	tax
 	ldy	.mazesx
-	jsr	GotoXY		; Move cursor to the start coord of this line
+	+GotoXY			; Move cursor to the start coord of this line
 
 	lda	#BitCnt
 	sta	.bitcnt
@@ -411,7 +425,7 @@ PlaceInitCursor:
 	; Move the cursor on the screen to the calculated coordinates
 	tax
 	ldy	.cursorx
-	jsr	GotoXY
+	+GotoXY
 
 	lda	.trailcol	; Set the color to draw with
 	jsr	CHROUT
@@ -497,7 +511,7 @@ InitSCR:
 
 	ldx	#1	; Setup to create top horizontal line
 	ldy	#1
-	jsr	GotoXY
+	+GotoXY
 
 	lda	#' '
 	ldx	#38
@@ -506,7 +520,7 @@ InitSCR:
 	; Setup to create bottom horizontal line
 	ldx	#SCREEN_HEIGHT-2
 	ldy	#1
-	jsr	GotoXY
+	+GotoXY
 
 	lda	#' '
 	ldx	#38
@@ -514,7 +528,7 @@ InitSCR:
 
 	ldx	#2	; Setup to create left most vertical line
 	ldy	#1
-	jsr	GotoXY
+	+GotoXY
 
 	ldx	#SCREEN_HEIGHT-4
 	lda	#' '
@@ -522,7 +536,7 @@ InitSCR:
 
 	ldx	#2	; Setup to create right most vertical line
 	ldy	#38
-	jsr	GotoXY
+	+GotoXY
 
 	ldx	#SCREEN_HEIGHT-4
 	lda	#' '
@@ -530,7 +544,7 @@ InitSCR:
 
 	ldx	#1	; Set up for title text
 	ldy	#15
-	jsr	GotoXY
+	+GotoXY
 
 	ldx	#<.title; Write the title text
 	ldy	#>.title
@@ -538,7 +552,7 @@ InitSCR:
 
 	ldx	#1	; Set up for level text (top right corner)
 	ldy	#31
-	jsr	GotoXY
+	+GotoXY
 
 	ldx	#<.lvlstr; Write the level text
 	ldy	#>.lvlstr
@@ -552,7 +566,7 @@ InitSCR:
 
 	ldy	#2	; Set up for help text (bottom line)
 	ldx	#SCREEN_HEIGHT-2
-	jsr	GotoXY
+	+GotoXY
 
 	ldx	#<.helptxt
 	ldy	#>.helptxt
@@ -592,7 +606,7 @@ SplashScreen:
 	; COMMANDER 16
 	ldx	#5
 	ldy	#11
-	jsr	GotoXY
+	+GotoXY
 	lda	#PET_GREEN
 	jsr	CHROUT
 	ldx	#<.cx16
@@ -602,7 +616,7 @@ SplashScreen:
 	; Top line of "graphical" X
 	ldx	#2
 	ldy	#18
-	jsr	GotoXY
+	+GotoXY
 	lda	#PET_PURPLE
 	jsr	CHROUT
 	ldx	#<.xl1
@@ -612,7 +626,7 @@ SplashScreen:
 	; Next line of "graphical" X
 	ldx	#3
 	ldy	#19
-	jsr	GotoXY
+	+GotoXY
 	lda	#PET_LIGHTBLUE
 	jsr	CHROUT
 	ldx	#<.xl2
@@ -622,7 +636,7 @@ SplashScreen:
 	; Next line of "graphical" X
 	ldx	#4
 	ldy	#20
-	jsr	GotoXY
+	+GotoXY
 	lda	#PET_CYAN
 	jsr	CHROUT
 	ldx	#<.xl3
@@ -632,7 +646,7 @@ SplashScreen:
 	; First line of bottom of "graphical" X
 	ldx	#6
 	ldy	#20
-	jsr	GotoXY
+	+GotoXY
 	lda	#PET_YELLOW
 	jsr	CHROUT
 	ldx	#<.xl5
@@ -642,7 +656,7 @@ SplashScreen:
 	; Next line of "graphical" X
 	ldx	#7
 	ldy	#19
-	jsr	GotoXY
+	+GotoXY
 	lda	#PET_ORANGE
 	jsr	CHROUT
 	ldx	#<.xl6
@@ -652,7 +666,7 @@ SplashScreen:
 	; Last line of "graphical" X
 	ldx	#8
 	ldy	#18
-	jsr	GotoXY
+	+GotoXY
 	lda	#PET_RED
 	jsr	CHROUT
 	ldx	#<.xl7
@@ -662,7 +676,7 @@ SplashScreen:
 	; Print MAZE with large letters (height=5 lines)
 	ldx	#20
 	ldy	#7
-	jsr	GotoXY
+	+GotoXY
 	lda	#PET_GREEN
 	jsr	CHROUT
 	ldx	#<.ml1
@@ -671,28 +685,28 @@ SplashScreen:
 
 	ldx	#21
 	ldy	#7
-	jsr	GotoXY
+	+GotoXY
 	ldx	#<.ml2
 	ldy	#>.ml2
 	jsr	PrintStr
 
 	ldx	#22
 	ldy	#7
-	jsr	GotoXY
+	+GotoXY
 	ldx	#<.ml3
 	ldy	#>.ml3
 	jsr	PrintStr
 
 	ldx	#23
 	ldy	#7
-	jsr	GotoXY
+	+GotoXY
 	ldx	#<.ml4
 	ldy	#>.ml4
 	jsr	PrintStr
 
 	ldx	#24
 	ldy	#7
-	jsr	GotoXY
+	+GotoXY
 	ldx	#<.ml5
 	ldy	#>.ml5
 	jsr	PrintStr
@@ -700,7 +714,7 @@ SplashScreen:
 	; Start text
 	ldx	#14
 	ldy	#11
-	jsr	GotoXY
+	+GotoXY
 	lda	#PET_WHITE
 	jsr	CHROUT
 	ldx	#<.starttxt
@@ -809,7 +823,7 @@ LevelComplete:
 	; level completed in the box.
 	ldx	#@YCOORD+0
 	ldy	#11
-	jsr	GotoXY
+	+GotoXY
 
 	lda	#' '
 	ldx	#17
@@ -817,7 +831,7 @@ LevelComplete:
 
 	ldx	#@YCOORD+1
 	ldy	#11
-	jsr	GotoXY
+	+GotoXY
 
 	lda	#' '
 	ldx	#17
@@ -825,7 +839,7 @@ LevelComplete:
 
 	ldx	#@YCOORD+2
 	ldy	#11
-	jsr	GotoXY
+	+GotoXY
 
 	lda	#' '
 	ldx	#17
@@ -833,7 +847,7 @@ LevelComplete:
 
 	ldx	#@YCOORD+1
 	ldy	#12
-	jsr	GotoXY
+	+GotoXY
 	ldx	#<.completetxt
 	ldy	#>.completetxt
 	jsr	PrintStr
@@ -944,7 +958,7 @@ DrawOutBorder:
 	; Top horizontal line
 	ldx	#0
 	ldy	#0
-	jsr	GotoXY
+	+GotoXY
 	ldx	#39
 	lda	#' '
 	jsr	HLine
@@ -952,7 +966,7 @@ DrawOutBorder:
 	; Left vertical line
 	ldx	#1
 	ldy	#0
-	jsr	GotoXY
+	+GotoXY
 	ldx	#SCREEN_HEIGHT-2
 	lda	#' '
 	jsr	VLine
@@ -960,7 +974,7 @@ DrawOutBorder:
 	; Right vertical line
 	ldx	#0
 	ldy	#39
-	jsr	GotoXY
+	+GotoXY
 	ldx	#SCREEN_HEIGHT-1
 	lda	#' '
 	jsr	VLine
@@ -968,7 +982,7 @@ DrawOutBorder:
 	; Bottom horizontal line
 	ldx	#SCREEN_HEIGHT-1
 	ldy	#0
-	jsr	GotoXY
+	+GotoXY
 	ldx	#39
 	lda	#' '
 	jsr	HLine
@@ -1016,7 +1030,7 @@ FillGA:
 	cpx	#SCREEN_HEIGHT-2; If we have reached bottom Y-coordinate
 	beq	.EndOfFill	; We are done, so branch to end
 	ldy	#2		; Y register holds the X coordinate
-	jsr	GotoXY		; Place cursor at X, Y coordinates
+	+GotoXY		; Place cursor at X, Y coordinates
 	lda	#Wall		; Load A with 'wall' character
 	ldx	#36		; Create a horizontal line that is
 	jsr	HLine		; 36 characters wide
@@ -1056,18 +1070,6 @@ HLine:
 	dex
 	bne	HLine		; Repeat while X > 0
 	rts
-
-; *******************************************************************
-; Ensures that Carry flag is cleared and calls PLOT to set cursor pos
-; *******************************************************************
-; INPUTS:	X = Column (Y coordinate)
-;		Y = Row    (X coordinate)
-; *******************************************************************
-GotoXY:
-	clc			; Clear Carry Flag
-	jsr	PLOT		; Move cursor to coordinates in X & Y
-	rts
-
 
 	; Level 1
 .mazes	!byte	25,10,10	;size,width,Height
